@@ -652,3 +652,18 @@ the missing response because Core dispatches only a durably retained response.
 Repeating the same operator request returns its existing authorization. Ordinary
 resume and model-generated inputs cannot authorize this retry. Do not claim complete
 cost accounting until the unknown provider usage is reconciled separately.
+
+## Connector I/O deadline failures
+
+Core 0.16.1 gives capability-backed Tools up to 60 seconds, while pure Tools
+retain five seconds and existing language/Brain limits remain unchanged. This
+covers Records queries and communication Connectors without changing access,
+complete-scan proof or provider-effect authorization. An explicit runtime Tool
+deadline still overrides the default.
+
+A stopped read-only step can be resumed by an authorized operator after checking
+the cause and deployed Core. Retained successful steps are reused. Do not restart
+a whole workflow or bypass Records checks to recover one read. Before recovering
+a stopped publication, inspect durable effects and provider receipts; termination
+of its sandbox does not cancel an already dispatched Connector request. Late IPC
+responses cannot revive the worker or dispatch subsequent calls.

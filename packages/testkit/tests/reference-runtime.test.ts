@@ -637,3 +637,22 @@ test("Workspace conversation coordination and optional specialist availability c
     assert.equal(enabled.agentRouting.handoffs?.[0]?.toAgentId, "editor");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test("Connector I/O may finish beyond the pure Tool five-second deadline", async () => {
+  const marketing = new MarketingSandboxConnector();
+  marketing.campaigns.set("listing-42", { campaignId: "SIM-SLOW", campaignKey: "listing-42", assets: [],
+    stopped: [], dailyBudget: 0, days: 1, maxSpend: 0, conversions: [] });
+  const runtime = new CompanyOSRuntime({
+    artifact: build(), state: new InMemoryStateStore(),
+    connectors: [new ArtifactSandboxConnector(), {
+      id: marketing.id, version: marketing.version, capabilities: marketing.capabilities,
+      async invoke(capability, input, context) {
+        await new Promise(resolve => setTimeout(resolve, 5_200));
+        return marketing.invoke(capability, input, context);
+      },
+    }],
+  });
+  const result: any = await runtime.execute({ runId: "slow-read", stepId: "report", agentId: "growth",
+    grantId: "company:campaign-report", input: { campaign_key: "listing-42" } });
+  assert.equal(result.output.conversions, 0);
+});

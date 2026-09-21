@@ -102,3 +102,27 @@ test("the isolated runner exposes only explicitly allowed Capability calls", asy
   assert.deepEqual(output, { value: "hello" });
   assert.deepEqual(calls, [{ capability: "fixture.echo", input: { value: "hello" } }]);
 });
+
+for (const fail of [false, true]) {
+  test(`a late ${fail ? "failed" : "successful"} capability cannot revive a timed-out sandbox`, async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    let calls = 0;
+    const source = valid.replace('return await context.capabilities.call("fixture.echo", { value: input.value });',
+      'await context.capabilities.call("fixture.echo", { value: input.value }); return await context.capabilities.call("fixture.echo", { value: "second" });');
+    const execution = executeIsolatedCompanyTool({ compiledSource: inspectAndCompileCompanyTool(source).compiledSource!,
+      input: { value: "first" }, timeoutMs: 800,
+      context: { instanceId: "fixture", runId: "run", stepId: "step", agentId: "agent", toolId: "tool" },
+      allowedCapabilities: ["fixture.echo"],
+      invokeCapability: async () => { calls++; entered(); await pending; if (fail) throw new Error("late failure"); return {}; },
+    });
+    const stopped = assert.rejects(execution, /Company Tool exceeded 800 ms/);
+    await started;
+    await stopped;
+    release();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(calls, 1, "the terminated Tool must never dispatch its second capability");
+  });
+}
