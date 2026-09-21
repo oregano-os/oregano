@@ -9,6 +9,14 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - package.json
   - packages/runtime/companyos-runtime.ts
   - packages/tool-sdk/isolated-runner.ts
