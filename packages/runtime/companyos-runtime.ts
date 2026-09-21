@@ -307,7 +307,8 @@ export class CompanyOSRuntime {
           allowedCapabilities: tool.contract.capabilities,
           ...(this.#toolExecutionTimeoutMs === undefined
             ? (standardBrainWriteCapability(tool) ? { timeoutMs: 120_000 }
-              : tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
+              : tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS }
+              : tool.contract.capabilities.length > 0 ? { timeoutMs: 60_000 } : {})
             : { timeoutMs: this.#toolExecutionTimeoutMs }),
           invokeCapability: async (capability, input) => {
             const brainWrite = capability === standardBrainWriteCapability(tool);

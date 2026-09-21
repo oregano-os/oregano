@@ -113,7 +113,7 @@ test("ordinary Artifact compilation freezes generated scoped phases and rejects 
       bindings: [["artifact.publish", "oregano/artifact-sandbox"], ...["marketing-campaign.launch", "marketing-campaign.read-report", "marketing-campaign.stop-asset", "conversion.record"].map(id => [id, "oregano/marketing-sandbox"])]
         .map(([capability, connector]) => ({ capability, connector, contractVersion: "1.0.0", connectorVersion: "1.0.0" })),
       connectors: [{ id: "language", connector: "oregano/language-model", connectorVersion: "1.0.0", configuration: { prompts: JSON.parse(JSON.stringify(result.prompts)) } }] };
-    const build = () => buildCompanyOSArtifact({ workspaceRoot: root, instance, coreVersion: "0.16.0", coreCommit: "1".repeat(40), workspaceCommit: "2".repeat(40), workbenchVersion: "0.1.0-experimental.24" });
+    const build = () => buildCompanyOSArtifact({ workspaceRoot: root, instance, coreVersion: "0.16.1", coreCommit: "1".repeat(40), workspaceCommit: "2".repeat(40), workbenchVersion: "0.1.0-experimental.24" });
     const artifact = build();
     const agent = artifact.agents.find(agent => agent.id === "growth")!;
     assert.deepEqual(agent.generationOnlyMaterials, result.prompts.map(prompt => prompt.path).sort());

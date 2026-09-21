@@ -85,3 +85,17 @@ attempt, while downstream effects retain their ordinary idempotency rules.
 
 For the reference host's configuration and limits, see the provider-specific
 [Vercel runner guide](../../operations/vercel-workflow-runner.md).
+
+## Tool execution deadlines
+
+The runtime gives Tools with declared Connector capabilities a 60-second total
+wall-clock deadline, including external I/O. Pure computations keep the five-second
+deadline. Existing language generation and Brain write deadlines remain 65 and
+120 seconds respectively; an explicitly configured runtime deadline takes precedence.
+These are finite execution limits, not provider timeouts or automatic retry permission.
+
+A timed-out sandbox cannot dispatch more capabilities. Late Connector responses
+are discarded at its closed IPC boundary. The underlying Connector request may
+still complete: a timeout does not prove absence of an external effect. Inspect
+retained receipts before recovery and keep ordinary effect reconciliation and
+idempotency. Current Records scan requirements and access checks remain mandatory.
