@@ -15,7 +15,9 @@ export function createProbe({ token, request = fetch, environment = process.env 
       if (!connector) throw new Error('Missing connector configuration');
       stage = 'connect-token';
       const getToken = token ?? (await import('@vercel/connect')).getToken;
-      const credential = await getToken(connector, { subject: { type: 'app' } });
+      const installationId = environment.SLACK_PROBE_INSTALLATION_ID;
+      if (installationId && !/^[A-Z0-9]{5,32}$/.test(installationId)) throw new Error('Invalid installation identity');
+      const credential = await getToken(connector, { subject: { type: 'app' }, ...(installationId ? { installationId } : {}) });
       stage = 'slack-auth';
       const response = await request('https://slack.com/api/auth.test', {
         method: 'POST', headers: { authorization: `Bearer ${credential}` }, signal: AbortSignal.timeout(10000),

@@ -905,6 +905,8 @@ connector UID as `SLACK_CONNECTOR` and a private operator credential of at least
 32 characters as `SLACK_PROBE_SECRET`; keep both outside Git. The project must
 already have access to that connector in the selected environment.
 
+Optionally set `SLACK_PROBE_INSTALLATION_ID` to the existing exact Slack workspace
+ID to distinguish default-installation resolution from explicit selection.
 POST `/api/check` with that bearer credential. The probe requests the existing
 app token through Connect and calls only Slack `auth.test`. It returns the
 failure stage, a secret-redacted message and digest, or the authenticated account
