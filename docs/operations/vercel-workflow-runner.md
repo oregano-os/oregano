@@ -894,3 +894,23 @@ initialize another allowance in a new environment. The source Workflow must read
 its exact authorized Records version, reconcile changes and retain final outcomes.
 Admission alone does not prove processing, source coverage or cost completeness.
 See [bounded imports](../specifications/brain-import.md#source-version-workflow-admission).
+
+## Read-only Slack connection probe
+
+When a retained workflow error contains only a digest, the fixture at
+`scripts/slack-connect-probe` can distinguish Connect token resolution from
+Slack authentication. Deploy it only to an existing authorized Preview/test
+project environment, never promote it to Production. Supply the existing
+connector UID as `SLACK_CONNECTOR` and a private operator credential of at least
+32 characters as `SLACK_PROBE_SECRET`; keep both outside Git. The project must
+already have access to that connector in the selected environment.
+
+Optionally set `SLACK_PROBE_INSTALLATION_ID` to the existing exact Slack workspace
+ID to distinguish default-installation resolution from explicit selection.
+POST `/api/check` with that bearer credential. The probe requests the existing
+app token through Connect and calls only Slack `auth.test`. It returns the
+failure stage, a secret-redacted message and digest, or the authenticated account
+identity. It cannot send messages, modify installations or change scopes. Keep
+Vercel deployment protection enabled and remove the diagnostic deployment after
+recording the result. A test-environment result does not itself prove Production
+has the same failure; compare its error digest with the stopped run.
