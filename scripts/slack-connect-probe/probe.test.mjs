@@ -7,3 +7,12 @@ const env={SLACK_PROBE_SECRET:secret,SLACK_CONNECTOR:'slack/fixture'};
 test('unauthorized requests cannot touch the connector',async()=>{let calls=0;const r=response();await createProbe({environment:env,token:async()=>{calls++;}})({method:'POST',headers:{}},r);assert.equal(r.code,404);assert.equal(calls,0);});
 test('provider failure identifies the stage and redacts configured secrets',async()=>{const r=response();await createProbe({environment:env,token:async()=>{throw new Error(`token revoked ${secret}`);}})({method:'POST',headers:{authorization:`Bearer ${secret}`}},r);assert.equal(r.body.stage,'connect-token');assert.ok(!JSON.stringify(r.body).includes(secret));assert.equal(r.body.errorDigest.length,64);});
 test('probe makes only auth.test and never returns credentials',async()=>{const credential='xoxb-synthetic-private-credential';let count=0;const r=response();await createProbe({environment:env,token:async()=>credential,request:async(url)=>{count++;assert.equal(url,'https://slack.com/api/auth.test');return {status:200,json:async()=>({ok:true,team_id:'T10001',user_id:'U10001',token:credential})};}})({method:'POST',headers:{authorization:`Bearer ${secret}`}},r);assert.equal(count,1);assert.equal(r.body.ok,true);assert.ok(!JSON.stringify(r.body).includes(credential));});
+test('explicit installation is forwarded and malformed identities never resolve a token',async()=>{
+  const request=async()=>({status:200,json:async()=>({ok:true,team_id:'T10001',user_id:'U10001'})});
+  let calls=0;
+  const token=async(_connector,params)=>{calls++;assert.deepEqual(params,{subject:{type:'app'},installationId:'T10001'});return 'synthetic-token';};
+  const req={method:'POST',headers:{authorization:`Bearer ${secret}`}};
+  await createProbe({environment:{...env,SLACK_PROBE_INSTALLATION_ID:'T10001'},token,request})(req,response());
+  const invalid=response();await createProbe({environment:{...env,SLACK_PROBE_INSTALLATION_ID:'invalid installation'},token,request})(req,invalid);
+  assert.equal(calls,1);assert.equal(invalid.body.ok,false);
+});
