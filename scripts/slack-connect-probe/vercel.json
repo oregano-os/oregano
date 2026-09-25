@@ -1,1 +1,1 @@
-{"version":2,"functions":{"api/check.mjs":{"maxDuration":30}}}
+{"version":2,"framework":null,"buildCommand":"","installCommand":"npm install --ignore-scripts","functions":{"api/check.mjs":{"maxDuration":30}}}
