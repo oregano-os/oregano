@@ -77,7 +77,7 @@ bindings: []
 | `bindings` | Yes | List of exact Capability-to-Connector implementations; `[]` is valid when none are required. Each entry needs `capability`, `contract_version`, `connector`, `connector_version`. |
 | `connectors` | No | Exact Connector installation entries: `id`, `connector`, `connector_version`, provider-specific non-secret `configuration`. |
 | `default_agent` | No | Explicit default Agent when no exact route or authorized assignment selects another. |
-| `agent_bindings` | No | Exact incoming communication routes. Each entry needs `id`, `agent`, `surface`, `account_id`, `channel_id`. |
+| `agent_bindings` | No | Exact incoming communication routes. Each entry needs `id`, `agent`, `surface`, `account_id`, `channel_id`; optional `conversation_mode` controls inbound conversation. |
 | `builder` | No | Coding execution, coding profile, repository bindings and optional bounded test resources. |
 | `workflow_bindings` | No | `direct_recipients` entries containing `binding`, `member_id`, `destination_binding`. |
 
@@ -217,3 +217,25 @@ Later governed Builder compilations reconstruct the same approved templates from
 the running Artifact's retained snapshots and pass them to the isolated compiler.
 They do not read mutable deployment configuration or discover new provider access.
 Changing the pinned input requires the existing Instance review and adoption path.
+
+## Channel conversation mode
+
+An Agent Binding may set `conversation_mode: conversation` (the default when
+omitted) or `conversation_mode: workflow-posts-only`. The latter suppresses
+inbound conversation before model calls, attachment retention, subscriptions,
+workflow reply collection, Builder handling or visible acknowledgments. It
+also applies to native mentions, subscribed threads, routed continuations and
+replayed messages; assignments and the default Agent cannot override it.
+
+This mode does not grant publication permission. Existing authorized workflow
+publications and independently configured Records reads keep their exact
+bindings, grants and receipts. During a pilot, keep workflow destinations on
+the test channel while declaring the source channel workflow-posts-only.
+DMs and other channels keep their own mode. Unknown modes or binding fields
+are rejected rather than silently treating a misspelled restriction as enabled.
+
+Deploy Core support together with the reviewed Artifact. Older Core versions
+may ignore the new field; pin the supporting commit before adopting it. Editing
+the YAML alone does not change an already running deployment. Explicit legacy
+host exclusions may still reject a channel; conversation mode does not override
+those ingress exclusions.

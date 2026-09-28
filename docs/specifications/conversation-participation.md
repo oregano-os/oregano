@@ -22,6 +22,20 @@ publish or cause business effects. This contract applies to every communication
 adapter, ordinary Agents, Builder conversations and interactive candidate tests.
 It does not depend on the coding Agent or deployment provider.
 
+## Deterministic channel admission
+
+Exact Agent Bindings may restrict a channel to `workflow-posts-only`. This
+restriction precedes the conversational participation decision, Agent fallback,
+conversation assignments and subscribed-thread handling. A blocked inbound turn
+MUST NOT call a model, retain attachments, subscribe, collect workflow replies,
+start Builder work or publish a conversational response, including errors.
+The maintained communication Runner enforces the boundary on entry and coordinated
+continuations. Explicit mentions do not override it. Omitted modes preserve
+legacy conversation behavior; invalid modes fail validation.
+
+Independent authorized workflow messages and Records ingestion remain available.
+This is a channel-level admission rule, not an LLM instruction or a new grant.
+
 ## Ownership and normalized input
 
 Authenticate the provider event, select exactly one owning Instance, resolve

@@ -1,3 +1,4 @@
+import { allowsConversationAtThread } from "./channel-conversation.ts";
 import { CONVERSATION_CONTROL_TOOL, CONVERSATION_PARTICIPATION_INSTRUCTIONS, conversationContext, type ConversationContextEntry } from "../../../runtime/conversation-participation.ts";
 import { withConversationParticipation, participationStep } from "./conversation-model-tools.ts";
 import { slackParticipation, slackConversationMessage } from "./conversation-participation.ts";
@@ -277,6 +278,10 @@ async function handleMessage(thread: Thread, message: ChatInput, builderContinua
   trace.emit("handler-entered");
   try {
     const member = rosterMember(message.author);
+    if (!allowsConversationAtThread(artifact.agentRouting, thread.id, member ? principal(member) : undefined)) {
+      trace.emit("filtered");
+      return;
+    }
     if (member && message.attachments?.length && !message.attachmentRefs) {
       const { agent } = await resolvedAgentForConversation({ threadId: thread.id, requesterPrincipal: principal(member) });
       const selected = resolveModelExecution({ ...agentModelTask(agent), requiredCapability: "language" });
@@ -404,6 +409,7 @@ async function coordinateConversation(thread: Thread, message: ChatInput, trace:
       }
       const destination = session?.conversation ?? concern.work?.address ?? turn.input.address;
       const target = concern.work ? botInstance!.thread(`slack:${destination.channelId}:${destination.threadId}`) : thread;
+      if (!allowsConversationAtThread(artifact.agentRouting, target.id, requester)) continue;
       await target.subscribe();
       if ((concern.needsAcknowledgement || (session && destination.threadId !== concern.source.address.threadId)) && !await state.get(`${routeKey}:${index}:ack`)) {
         const link = `https://slack.com/archives/${destination.channelId}/p${destination.threadId.replace(".", "")}`;
@@ -430,6 +436,7 @@ async function coordinateConversation(thread: Thread, message: ChatInput, trace:
 async function processConversationMessage(thread: Thread, message: ChatInput,
   trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace, coordinated?: CoordinatedTurn, builderContinuation = false) {
   const incomingMember = rosterMember(message.author);
+  if (!allowsConversationAtThread(artifact.agentRouting, thread.id, incomingMember ? principal(incomingMember) : undefined)) return;
   const incoming = incomingMember ? slackConversationMessage(thread, message, { id: principal(incomingMember), name: incomingMember.name }) : undefined;
   if (!builderContinuation && !coordinated && await builderRelease?.receive({ conversation: thread.id, author: message.author, participation: incoming,
     messageId: message.id, text: message.text, occurredAt: message.metadata.dateSent.toISOString() })) return;
@@ -519,6 +526,7 @@ async function processConversationMessage(thread: Thread, message: ChatInput,
   }
   const sessionThreadId = workflowSession ? workflowReplyThreadId(workflowSession)
     : resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
+  if (!allowsConversationAtThread(artifact.agentRouting, sessionThreadId, requester)) return;
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
   if (workflowSession && deliveryThread !== thread) await deliveryThread.subscribe();
   await rememberSlackAgentSessionConversation(

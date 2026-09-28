@@ -1,3 +1,4 @@
+import { sha256 } from "../../../runtime/canonical.ts";
 import assert from "node:assert/strict";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
@@ -68,7 +69,7 @@ test("failed chat construction never caches a handlerless instance and recovers 
   const records = configuration();
   const artifact = buildCompanyOSArtifact({
     workspaceRoot: join(import.meta.dirname, "../../../testkit/fixtures/reference-company"),
-    instance: { version: 1, instanceId: records.instance_id, environment: "preview", agentBindings: [],
+    instance: { version: 1, instanceId: records.instance_id, environment: "preview", agentBindings: [{ id: "reports", agentId: "growth", surface: "slack", accountId: "T12345", channelId: "C12345", conversationMode: "workflow-posts-only" }],
       bindings: [
         ["artifact.publish", "oregano/artifact-sandbox"],
         ["marketing-campaign.launch", "oregano/marketing-sandbox"],
@@ -81,6 +82,9 @@ test("failed chat construction never caches a handlerless instance and recovers 
     },
     coreVersion: "0.5.14", coreCommit: "a".repeat(40), workspaceCommit: "b".repeat(40), workbenchVersion: "0.1.0-experimental.15",
   });
+  artifact.roster.push({ id: "fixture-human", name: "Fixture Human", role: "steward", userId: "U12345", teamId: "T12345", status: "active", mayApprove: [], principals: ["slack:T12345:U12345"] });
+  const { artifactHash: priorHash, ...body } = artifact;
+  artifact.artifactHash = sha256({ ...body, provenance: { ...body.provenance, builtAt: undefined } });
   const encode = (value: unknown) => gzipSync(JSON.stringify(value)).toString("base64");
   const previous = { ...process.env };
   t.after(() => { for (const name of Object.keys(process.env)) if (!(name in previous)) delete process.env[name]; Object.assign(process.env, previous); });
@@ -102,4 +106,15 @@ test("failed chat construction never caches a handlerless instance and recovers 
   assert.equal(handlers.mentionHandlers.length, 1);
   assert.equal(handlers.subscribedMessageHandlers.length, 1);
   assert.ok(handlers.actionHandlers.length > 0);
+  // Exercise actual SDK callbacks. Any model/network, storage or thread effect
+  // would fail: this test has no provider credentials or database connection.
+  const message = { id: "123.456", text: "@assistant please respond", isMention: true,
+    author: { userId: "U12345", isBot: false, isMe: false }, metadata: { dateSent: new Date() },
+    attachments: [{ type: "file", url: "https://example.invalid/private" }] };
+  const forbidden = () => assert.fail("workflow-only channel attempted a visible or subscription effect");
+  for (const handler of [...handlers.mentionHandlers, ...handlers.subscribedMessageHandlers]) {
+    for (const id of ["slack:C12345:", "slack:C12345:123.000"]) {
+      await (handler as (thread: unknown, message: unknown) => Promise<void>)({ id, isDM: false, post: forbidden, subscribe: forbidden }, message);
+    }
+  }
 });

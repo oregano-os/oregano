@@ -194,3 +194,22 @@ builder:
 `, (path) => {
   assert.equal(loadInstanceBuildConfiguration(path).builder?.codingAgent.profile, "claude-code");
 }));
+
+for (const mode of ["conversation", "workflow-posts-only", "typo", "null"]) {
+  test(`Instance channel conversation mode: ${mode}`, () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+agent_bindings:
+  - id: reports
+    agent: assistant
+    surface: slack
+    account_id: T1
+    channel_id: C1
+    conversation_mode: ${mode}
+`, path => {
+    if (mode === "typo" || mode === "null") assert.throws(() => loadInstanceBuildConfiguration(path), /conversation_mode/);
+    else assert.equal(loadInstanceBuildConfiguration(path).agentBindings[0]?.conversationMode, mode);
+  }));
+}
