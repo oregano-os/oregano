@@ -8,6 +8,12 @@ non_goals:
 placement: core
 change_class: behavior
 files_expected:
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
   - packages/testkit/fixtures/*/.companyos/compatibility.yaml
   - .oregano/changes/2026-09-28-brain-release.yaml
   - package.json
