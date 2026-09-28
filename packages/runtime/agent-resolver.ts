@@ -4,6 +4,7 @@ export interface AgentBinding {
   readonly surface: string;
   readonly accountId: string;
   readonly channelId: string;
+  readonly conversationMode?: "conversation" | "workflow-posts-only";
 }
 
 export interface CompiledAgentRouting {
@@ -73,6 +74,9 @@ export function validateAgentRouting(
   const bindingIds = new Set<string>();
   const routeKeys = new Set<string>();
   for (const binding of routing.bindings) {
+    if (binding.conversationMode !== undefined && !["conversation", "workflow-posts-only"].includes(binding.conversationMode)) {
+      throw new AgentResolutionError("invalid-routing", `Invalid conversation mode for Agent Binding '${binding.id}'.`);
+    }
     if (!known.has(binding.agentId)) {
       throw new AgentResolutionError(
         "invalid-routing",
@@ -196,4 +200,15 @@ export function resolveAgent(
 
 function routeKey(binding: Pick<AgentBinding, "surface" | "accountId" | "channelId">): string {
   return `${binding.surface}\u0000${binding.accountId}\u0000${binding.channelId}`;
+}
+
+/** Channel policy precedes assignments, defaults and model participation. */
+export function allowsChannelConversation(
+  routing: CompiledAgentRouting,
+  request: Pick<AgentResolutionRequest, "surface" | "accountId" | "channelId">,
+): boolean {
+  const matches = routing.bindings.filter(binding => routeKey(binding) === routeKey(request));
+  if (matches.length > 1) return false;
+  const mode = matches[0]?.conversationMode;
+  return mode === undefined || mode === "conversation";
 }
