@@ -526,6 +526,7 @@ async function processConversationMessage(thread: Thread, message: ChatInput,
   }
   const sessionThreadId = workflowSession ? workflowReplyThreadId(workflowSession)
     : resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
+  if (!allowsConversationAtThread(artifact.agentRouting, sessionThreadId, requester)) return;
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
   if (workflowSession && deliveryThread !== thread) await deliveryThread.subscribe();
   await rememberSlackAgentSessionConversation(
