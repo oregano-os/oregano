@@ -42,12 +42,13 @@ test("incomplete model generation fails instead of publishing partial text", asy
 });
 
 test("actual SDK request explicitly bounds adaptive thinking instead of relying on provider defaults", async () => {
+  for (const reasoningEffort of [undefined, "medium", "high"] as const) {
   let calls = 0;
   const model = createAnthropic({ apiKey: "synthetic-test-key", fetch: async (_url, init) => {
     calls++;
     const body = JSON.parse(String(init?.body));
     assert.equal(body.thinking.type, "adaptive");
-    assert.equal(body.output_config.effort, "low");
+    assert.equal(body.output_config.effort, reasoningEffort ?? "low");
     assert.equal(body.max_tokens, 12000);
     assert.equal(body.system.at(-1).text, languageSystemInstructions("Write a short assessment"));
     return new Response(JSON.stringify({ type: "message", id: "msg_synthetic", role: "assistant", model: "claude-sonnet-5",
@@ -55,12 +56,14 @@ test("actual SDK request explicitly bounds adaptive thinking instead of relying 
       usage: { input_tokens: 10, output_tokens: 5 } }), { headers: { "content-type": "application/json" } });
   } })("claude-sonnet-5");
   const generate = createLanguageGenerator({ resolve: (() => ({ model, selection: {
-    route: "anthropic-direct", model: "anthropic/claude-sonnet-5", maxOutputTokens: 12000,
+    route: "anthropic-direct", model: "anthropic/claude-sonnet-5", maxOutputTokens: 12000, reasoningEffort,
   } })) as unknown as typeof resolveModelExecution, generate: actualGenerateText });
-  const result = await generate({ instructions: "Write a short assessment", data: "{}", agentId: "analyst", modelTask: "analyst.review" });
+  const result = await generate({ instructions: "Write a short assessment", data: '{"reasoningEffort":"untrusted-max"}', agentId: "analyst", modelTask: "analyst.review",
+    beforeDispatch: async selection => { assert.equal(selection.reasoningEffort, reasoningEffort ?? "low"); } });
   assert.equal(calls, 1);
   assert.equal(result.text, "Supported summary.");
-  assert.equal(result.evidence.reasoning, "low");
+  assert.equal(result.evidence.reasoning, reasoningEffort ?? "low");
+  }
 });
 
 test("the owning model's policy validates inline files before generation", async () => {

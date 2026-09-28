@@ -1,14 +1,16 @@
 import { sha256 } from "../runtime/canonical.ts";
 import { BrainError, type BrainConfiguration, type BrainPage } from "./contracts.ts";
-import { checkBrainCorpus, parseBrainPage, resolveBrainName, serializeBrainPage } from "./documents.ts";
+import { checkBrainCorpus, parseBrainPage, resolveBrainName, resolveTimelineEvidence, serializeBrainPage } from "./documents.ts";
 import { assertBrainPath } from "./paths.ts";
 import { parseTakes, renderTakes, TAKES_BEGIN, TAKES_END } from "./takes.ts";
+import { addBrainTimeline, hasBrainSourceCitation, type BrainTimelineAddition } from "./timeline-mutation.ts";
 
 export const MAX_BRAIN_WRITE_FILES = 16;
 export const MAX_BRAIN_WRITE_UNITS = 400_000;
-export interface BrainReplacement { path: string; expected_content_hash: string | null; markdown: string }
+export interface BrainReplacement { path: string; expected_content_hash: string | null; markdown: string; timeline_add?: never }
+export interface BrainTimelineChange { path: string; expected_content_hash: string; timeline_add: BrainTimelineAddition; markdown?: never }
 export interface BrainRememberInput {
-  changes: { expected_revision: string; pages: BrainReplacement[] };
+  changes: { expected_revision: string; pages: Array<BrainReplacement | BrainTimelineChange> };
   provenance: { source_id: string; source_version: string; action: string; evidence: string[] };
   operation_key: string;
   dry_run?: boolean;
@@ -35,7 +37,11 @@ export interface BrainPreparedMutation {
   diagnostics: ReturnType<typeof checkBrainCorpus>["diagnostics"];
 }
 
-const fail = (code: string, message: string): never => { throw new BrainError(code, message); };
+const fail = (code: string, message: string): never => {
+  const atomic = ["invalid_batch", "provenance_missing"].includes(code)
+    ? "The entire batch was rejected before saving; none of its page changes were applied. " : "";
+  throw new BrainError(code, atomic + message);
+};
 const digest = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 export function assertBrainWriteIdentity(revision: unknown, operationKey: unknown): void {
   if (typeof revision !== "string" || !/^[a-f0-9]{40}$/.test(revision)) fail("invalid_input", "An exact expected repository revision is required.");
@@ -55,7 +61,11 @@ function expectedFile(files: Record<string, string>, path: string, expected: str
 function parsedPage(path: string, markdown: string, config: BrainConfiguration): BrainPage {
   if (typeof markdown !== "string") fail("target_missing", "The selected page is absent.");
   const parsed = parseBrainPage(path, markdown, config);
-  if (!parsed.page || parsed.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "A selected page is invalid; run Brain check for diagnostics.");
+  if (!parsed.page || parsed.diagnostics.some(item => item.severity === "error")) {
+    const diagnostics = parsed.diagnostics.filter(item => item.severity === "error").slice(0, 4)
+      .map(item => `${item.code}: ${item.message}`).join("; ");
+    fail("invalid_batch", `Invalid page ${path}: ${diagnostics || "The page could not be parsed."}`.slice(0, 1800));
+  }
   return parsed.page!;
 }
 
@@ -75,7 +85,7 @@ export function assertBrainTakeContinuity(previous: BrainPage, next: BrainPage):
   }
 }
 
-function finishMutation(before: Record<string, string>, after: Record<string, string>, config: BrainConfiguration): BrainPreparedMutation {
+function finishMutation(before: Record<string, string>, after: Record<string, string>, config: BrainConfiguration, evidence: string[] = []): BrainPreparedMutation {
   const changes = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()
     .filter(path => before[path] !== after[path]).map(path => ({ path, markdown: after[path] ?? null }));
   if (changes.length > MAX_BRAIN_WRITE_FILES || changes.reduce((size, change) => size + (change.markdown?.length ?? 0), 0) > MAX_BRAIN_WRITE_UNITS) {
@@ -83,7 +93,12 @@ function finishMutation(before: Record<string, string>, after: Record<string, st
   }
   for (const change of changes) assertBrainPath(change.path);
   const checked = checkBrainCorpus(after, config);
-  if (checked.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "Brain validation: " + checked.diagnostics.filter(item => item.severity === "error").slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
+  const errors = checked.diagnostics.filter(item => item.severity === "error");
+  if (errors.length) {
+    const hint = evidence.length && errors.some(item => ["timeline_evidence_missing", "take_evidence_missing"].includes(item.code))
+      ? `Timeline entries must link to original-backed evidence directly or through one cited content page; Takes still require direct evidence. Declared evidence: ${evidence.slice(0, 4).map(slug => `[[${slug}]]`).join(", ")}. ` : "";
+    fail("invalid_batch", hint + "Brain validation: " + errors.slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
+  }
   return { files: after, changes, diagnostics: checked.diagnostics };
 }
 
@@ -92,28 +107,44 @@ export function prepareBrainRemember(files: Record<string, string>, config: Brai
   assertBrainWriteIdentity(input.changes?.expected_revision, input.operation_key);
   const replacements = input.changes.pages;
   if (!Array.isArray(replacements) || !replacements.length || replacements.length > MAX_BRAIN_WRITE_FILES
-    || new Set(replacements.map(change => change.path)).size !== replacements.length) fail("invalid_input", "Provide one bounded set of distinct page replacements.");
+    || replacements.some(change => !change || typeof change !== "object")
+    || new Set(replacements.map(change => change.path)).size !== replacements.length) fail("invalid_input", "Provide one bounded set of distinct page changes.");
   const provenance = input.provenance;
   if (!provenance || [provenance.source_id, provenance.source_version, provenance.action].some(value => typeof value !== "string" || !value.trim() || value.length > 256)
     || !Array.isArray(provenance.evidence) || !provenance.evidence.length || provenance.evidence.length > 16
     || provenance.evidence.some(value => typeof value !== "string" || !value.trim() || value.length > 160)) fail("invalid_input", "Source identity, version, processing action and internal evidence are required.");
   const next = { ...files };
   for (const change of replacements) {
+    if (Object.hasOwn(change, "timeline_add") === Object.hasOwn(change, "markdown")) fail("invalid_input", "Choose a complete Markdown replacement or one Timeline addition for each page.");
+    if (Object.hasOwn(change, "timeline_add") && !digest(change.expected_content_hash)) fail("invalid_input", "A Timeline addition requires an existing page and its read content hash.");
     const previous = expectedFile(files, change.path, change.expected_content_hash);
-    if (typeof change.markdown !== "string") fail("invalid_input", "Remember supplies complete Markdown pages; use forget for deletion.");
-    const page = parsedPage(change.path, change.markdown, config);
+    const markdown = Object.hasOwn(change, "timeline_add")
+      ? addBrainTimeline(parsedPage(change.path, previous!, config), change.timeline_add!) : change.markdown;
+    if (typeof markdown !== "string") fail("invalid_input", "Remember supplies complete Markdown pages or a Timeline addition; use forget for deletion.");
+    const page = parsedPage(change.path, markdown!, config);
     if (previous !== undefined) assertBrainTakeContinuity(parsedPage(change.path, previous, config), page);
-    next[change.path] = change.markdown;
+    next[change.path] = markdown!;
   }
-  const prepared = finishMutation(files, next, config);
   const corpus = checkBrainCorpus(next, config);
   for (const source of provenance.evidence) {
     const found = resolveBrainName(corpus.pages, source);
     if (found.length !== 1 || config.types[found[0].type].role !== "evidence" || !found[0].original_links.length) {
-      fail("provenance_missing", "Provenance must resolve to existing internal evidence with an original-source link.");
+      fail("provenance_missing", `Declared evidence ${source} must resolve to an evidence-role page with an original-source link. Include its complete source page in this batch if it has not been saved; pages from a rejected batch do not exist.`);
     }
   }
-  return prepared;
+  for (const change of replacements) {
+    const addition = change.timeline_add;
+    if (!addition) continue;
+    const text = `${addition.summary} ${addition.detail ?? ""}`;
+    const cited = resolveTimelineEvidence(corpus.pages, config, text, parsedPage(change.path, next[change.path], config).slug);
+    for (const source of addition.evidence) {
+      if (!provenance.evidence.includes(source)) fail("provenance_missing", "Every Timeline evidence reference must be declared in this write's provenance.");
+      if (hasBrainSourceCitation(text) && !cited.has(resolveBrainName(corpus.pages, source)[0]!.slug)) {
+        fail("invalid_batch", "The readable Timeline citation must reach every declared evidence page directly or through one cited content page; no hidden source comments are added.");
+      }
+    }
+  }
+  return finishMutation(files, next, config, provenance.evidence);
 }
 
 function withoutExactPassage(page: BrainPage, text: string, config: BrainConfiguration): string {

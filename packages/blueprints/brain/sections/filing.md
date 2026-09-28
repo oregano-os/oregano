@@ -44,12 +44,11 @@ An unlinked mention is a broken brain. The graph is the intelligence.
 
 ## Citation Requirements (MANDATORY)
 
-Every fact written to a brain page must carry an inline `[Source: ...]` citation.
-
-Three formats:
-- **Direct attribution:** `[Source: User, {context}, YYYY-MM-DD]`
-- **API/external:** `[Source: {provider}, YYYY-MM-DD]` or `[Source: {publication}, {URL}]`
-- **Synthesis:** `[Source: compiled from {list of sources}]`
+Every fact carries a clickable, bracketed `Source:` citation using the shared
+Quality Convention. Entity facts and Timeline events link to the meeting page;
+meeting-page facts and non-meeting sources link to retained internal evidence.
+Keep direct Timeline evidence in the same-line source comment, without a second
+visible raw path. A bare `[Source: ...]` label has no link destination.
 
 Source precedence (highest to lowest):
 1. User's direct statements (highest authority)

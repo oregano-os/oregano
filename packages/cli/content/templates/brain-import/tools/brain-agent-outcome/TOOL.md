@@ -1,6 +1,6 @@
 ---
 type: tool
-description: Record the verified incremental import outcome or the shared triage skip
+description: Retain the Agent report, observed write receipts or shared triage skip
 version: 1.0.0
 risk: R0
 data_class: business
@@ -41,9 +41,17 @@ output_schema:
   properties:
     status:
       enum:
+        - processed
         - ingested
         - reconciled
         - skipped
+    agent_report:
+      description: Agent-authored final text; not an independent quality verdict.
+      type: string
+      minLength: 1
+    verification_mode:
+      enum:
+        - agent-skill
     source_identity:
       type: string
       minLength: 1

@@ -7,6 +7,29 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
   return {status:'skipped',source_identity:task.source.identity,source_version:task.source.version,route,pages:[],receipts:[],indexed_revision:null,verification:[],gaps:[]};
  }
  if(!execution?.result||!Array.isArray(execution.calls))throw Error('Completed Agent evidence is required');
+ // Text completion records what the Agent reported, not a server quality verdict.
+ if(typeof execution.result.text==='string'){
+  const report=execution.result.text;if(!report.trim())throw Error('A final Agent report is required');
+  const pages=new Map<string,any>(task.prior.requests.map((p:any)=>[p.slug,{slug:p.slug}])),receipts:any[]=[];
+  let attempted=false,indexed:any=null;
+  for(const call of execution.calls){
+   if(call.name!=='oregano_brain_remember')continue;
+   attempted=true;if(call.error)continue;
+   const write=call.output;
+   if(!['saved','unchanged'].includes(write?.status))continue;
+   if(call.input?.provenance?.source_id!==task.source.identity||call.input?.provenance?.source_version!==task.source.version)throw Error('Write provenance does not match the source task');
+   if(!['indexed','current_head_indexed'].includes(write.sync_status)||!write.indexed_revision)throw Error('Reconcile the retained Git/index operation before recording its outcome');
+   if(write.status==='saved'&&!write.saved_commit)throw Error('Missing durable Git write receipt');
+   receipts.push(write);indexed=write.indexed_revision;
+   for(const page of write.page_results??[]){
+    if(!/^brain\/[a-z0-9-]+\/[a-z0-9-]+\.md$/.test(page.path)||! /^[a-f0-9]{64}$/.test(page.content_hash))throw Error('Invalid retained page receipt');
+    const slug=page.path.slice(6,-3);pages.set(slug,{slug,content_hash:page.content_hash});
+   }
+  }
+  if(attempted&&!receipts.length)throw Error('All attempted writes failed; a final report is not a write receipt');
+  return {status:'processed',source_identity:task.source.identity,source_version:task.source.version,route,pages:[...pages.values()],receipts,indexed_revision:indexed,
+   verification:[],gaps:[],verification_mode:'agent-skill',agent_report:report};
+ }
  const result=execution.result,reads=new Map<string,any>(),receipts:any[]=[];
  if(result.status==='skipped'){
   if(task.prior.requests.length||result.pages.length||result.meetings.length||execution.calls.some((c:any)=>c.name==='oregano_brain_remember')||!result.gaps.length

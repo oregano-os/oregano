@@ -1,0 +1,69 @@
+version: 3
+plan_id: agent-output-recovery-2026-09-17
+created: 2026-09-17
+title: Continue known Agent output cutoffs within the same bounded journal
+objective: Add opt-in continuation for confirmed output-length failures. Preserve
+  prior Tool receipts, attempt costs and immutable source identity. Request smaller
+  operations after a cutoff, count cutoffs as no progress and retain all cumulative
+  limits. Allow 32000 output tokens per response and a 360-second model timeout,
+  with sufficient host and lease headroom. Adopt the response limit and recovery
+  policy in new Brain imports without changing the model or other task budgets.
+non_goals:
+  - Retry unknown provider outcomes, change historical Artifacts or reset budgets.
+  - Execute partial Tool calls or repeat previously confirmed writes.
+  - Add a content critic, new sources, Phase 2 or Dream.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-17-agent-output-recovery.yaml
+  - .oregano/changes/2026-09-16-brain-ingestion-routing.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/state-store/workflow-engine.ts
+  - packages/companyos-builder/workflow-*.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/runner-vercel/src/lib/workflow-agent*
+  - packages/runner-vercel/src/app/api/workflows/steps/route.ts
+  - packages/runner-vercel/src/app/api/workflows/operator/route.ts
+  - packages/blueprints/brain/agent-instructions.md
+  - packages/blueprints/brain/workflows/brain-import.md
+  - packages/cli/content/templates/brain-import/manifest.json
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/testkit/tests/workflow-worker-conformance.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/brain-import.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/testkit/tests/workflow-worker-conformance.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/runner-vercel/src/lib/workflow-agent.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.brain-import
+    - operations.workflow-engine
+architecture:
+  placement:
+    core: Generic cutoff classification, durable continuation, cost accounting and host bounds.
+    packages: Portable small-write guidance and opt-in Brain Workflow defaults.
+    workspace: Reviewed model bindings, source selection and unchanged cumulative limits.
+    instance: Provider execution, leases and retained attempt and write receipts.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Respect larger reviewed output and time allowances with actual usage evidence.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Continue only known length failures in the same append-only journal without replaying saved operations.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company may select bounded output-cutoff recovery for a durable Agent task without provider-specific business logic.
+rollback: Restore prior defaults for new Artifacts; retain historical definitions,
+  failures, costs, source identities and every saved write. Never reset an old run.

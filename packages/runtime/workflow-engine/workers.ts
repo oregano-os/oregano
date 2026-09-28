@@ -1,3 +1,4 @@
+import { AGENT_HOST_DURATION_MS } from "./agent-contract.ts";
 import { randomUUID } from "node:crypto";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { WorkflowExecutionStore } from "../../state-store/workflow-engine.ts";
@@ -87,7 +88,7 @@ export class WorkflowWorkers {
     const timerKind = `workflow-host-${kind}`, timerId = sha256({ instanceId: artifact.instance.id, timerKind, dueAt });
     const result: WorkflowWorkerResult = { ok: true, claimed: false, processed: 0, opened: 0, continued: false, errors: [] };
     await timers.schedule({ timerId, timerKind, dueAt, idempotencyKey: timerId, payload: {} });
-    const [job] = await timers.claimDue({ timerKind, now, owner: "workflow-host", leaseToken: randomUUID(), leaseExpiresAt: new Date(Date.parse(now) + 300_000).toISOString(), limit: 1 });
+    const [job] = await timers.claimDue({ timerKind, now, owner: "workflow-host", leaseToken: randomUUID(), leaseExpiresAt: new Date(Date.parse(now) + (kind === "steps" ? AGENT_HOST_DURATION_MS : 300_000)).toISOString(), limit: 1 });
     if (!job) return result;
     result.claimed = true;
     const deadline = Date.now() + 150_000;

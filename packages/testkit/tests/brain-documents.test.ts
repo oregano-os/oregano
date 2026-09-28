@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parseBrainConfiguration } from "../../brain/configuration.ts";
 import { assertBrainPath, assertBrainGitEntry } from "../../brain/paths.ts";
-import { parseBrainPage, serializeBrainPage, checkBrainCorpus, resolveBrainName } from "../../brain/documents.ts";
+import { referenceLinks, parseBrainPage, serializeBrainPage, checkBrainCorpus, resolveBrainName } from "../../brain/documents.ts";
 import { parseTakes, renderTakes } from "../../brain/takes.ts";
 import { readLocalBrainFiles } from "../../brain/local-files.ts";
 import { splitBody } from "../../brain/upstream/timeline.ts";
@@ -88,4 +88,36 @@ test("local input rejects links, hardlinks and executable Markdown", async () =>
     await rm(join(root, "brain/topics"), { recursive: true });
     await symlink(root, join(root, "brain/topics")); await assert.rejects(readLocalBrainFiles(root));
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+
+test('Visible citation brackets do not become part of an aliased wiki target', () => {
+ const citation = String.raw`\[[[sources/review|Source: Meeting "Review", 2026-09-15]]\]`;
+ assert.deepEqual(referenceLinks(citation).map(link => link.target), ['sources/review']);
+ assert.deepEqual(referenceLinks('[[sources/review|Review]] [Review](sources/review.md)').map(link => link.target), ['sources/review', 'sources/review']);
+ assert.deepEqual(referenceLinks(String.raw`\[[sources/review]]`), [], 'An escaped wiki opener is literal text');
+ const body = 'Source-grounded knowledge.\n\n<!-- timeline -->\n- 2026-09-15: Reviewed. ' + citation;
+ const checked = checkBrainCorpus({...brainFiles, 'brain/topics/citation.md': page('topic', 'Citation', body)}, brainConfig);
+ assert.deepEqual(checked.diagnostics.filter(d => d.path === 'brain/topics/citation.md'), []);
+});
+
+test('Timeline evidence permits one content hop and rejects missing, ambiguous, circular or historical chains', () => {
+ const target = 'brain/people/reviewer.md';
+ const event = page('person', 'Reviewer', 'Current context.\n\n<!-- timeline -->\n- 2030-01-02: Reviewed. \\[[[topics/notes|Source: Meeting "Review", 2030-01-02]]\\]');
+ const files = { ...brainFiles, [target]: event,
+   'brain/topics/notes.md': page('topic', 'Review notes', 'Account. [[sources/review|Original transcript]]') };
+ const invalid = (input: Record<string, string>) => checkBrainCorpus(input, brainConfig).diagnostics.some(d => d.path === target && d.code === 'timeline_evidence_missing');
+ assert.equal(invalid(files), false);
+ for (const content of ['No source.', '[[topics/notes]]', '[[topics/expansion]]', '[[people/alex]]',
+   'Current account.\n\n<!-- timeline -->\n- Older event. [[sources/review]]']) {
+   assert.equal(invalid({ ...files, 'brain/topics/notes.md': page('topic', 'Review notes', content) }), true, content);
+ }
+ assert.equal(invalid({ ...files, 'brain/sources/review.md': page('source', 'Review', 'No original URL.') }), true);
+ assert.equal(invalid({ ...files, 'brain/topics/notes.md': page('topic', 'Review notes', '[[Duplicate]]'),
+   'brain/sources/a.md': page('source', 'Duplicate', '[Original](https://example.org/a)'),
+   'brain/sources/b.md': page('source', 'Duplicate', '[Original](https://example.org/b)') }), true);
+ const self = { ...files, 'brain/topics/notes.md': page('topic', 'Review notes', '[[sources/review]]\n\n<!-- timeline -->\n- 2030-01-02: Reviewed. [[topics/notes]]') };
+ assert.ok(checkBrainCorpus(self, brainConfig).diagnostics.some(d => d.path === 'brain/topics/notes.md' && d.code === 'timeline_evidence_missing'));
+ const indirectTake = { ...files, 'brain/topics/expansion.md': brainFiles['brain/topics/expansion.md'].replaceAll('[[sources/review]]', '[[topics/notes]]') };
+ assert.ok(checkBrainCorpus(indirectTake, brainConfig).diagnostics.some(d => d.code === 'take_evidence_missing'), 'Takes retain direct evidence');
 });

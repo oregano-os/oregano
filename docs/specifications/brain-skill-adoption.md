@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-15
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -29,6 +29,8 @@ source passages except for explicit Oregano operation, storage, model-role,
 path and synthetic-example adaptations. Upstream personal storage, external
 enrichment, autonomous extra Agents and provider-specific model defaults are
 excluded. Review the pinned source ranges when changing an adaptation.
+The citation adaptation adds clickable, bracketed wiki aliases and hides redundant
+Timeline source paths in same-line comments while preserving direct provenance.
 
 The adjacent declarative Workflow is now part of the inspectable `oregano/brain`
 Blueprint. `scripts/materialize-brain-workflow.ts` composes this prompt helper
@@ -85,9 +87,11 @@ host wrapper and serialized evidence size, selected-model context limits, token
 usage and available cost evidence, finish reason and elapsed time. Exercise the
 largest applicable phase and preserve source/context/prior-result dependencies
 across calls. The model has no Tools or write authority. Oversized evidence and
-incomplete output are failures, not successful truncated drafts. Existing limits
-remain 150,000 evidence units, at most 4,000 output tokens and 20,000 returned
-units, 55 seconds generation and 65 seconds enclosing Tool time.
+incomplete output are failures, not successful truncated drafts. The generation
+Connector admits at most 200,000 serialized JavaScript string units of evidence,
+including trusted repair feedback. Brain import output and timeout limits follow
+the [current import contract](brain-import.md); narrower phase-specific bounds
+still apply and never permit source truncation.
 
 The automated tests use synthetic fixtures and model transports. A separate
 protected model-only Preview qualified representative source triage, normalization,
@@ -160,5 +164,64 @@ All five reviewed procedure Skills are in the task's instruction list, each with
 the existing 30000-character limit. This makes the original meeting template and
 V1–V6 definitions available without depending on an optional Tool call. The filing
 rules can produce a no-write notability skip; routing to a higher model tier does
-not override them. Public regressions cover skipped sources, per-page read-back,
-required sections and unchanged prior-source reconciliation constraints.
+not override them. Public regressions cover source outcomes, retained write evidence,
+Skill delivery and unchanged prior-source reconciliation constraints.
+
+## Content routing revision (2026-09-16)
+
+New Workflow materializations use incremental Skill-led ingestion rather than
+meeting one-shot synthesis. `ingestion-adoption.json` pins additional scoped
+idea/media/blog adaptations to GBrain commit
+`668b9bac302705f3bca0ae4792a49fab0a79a74e`, with source and adopted-content hashes.
+The meeting Skill at that commit is byte-identical to the existing pinned source
+(SHA-256 `949a491b98e7dabe51e3d1640f49a7dbfacb543703d22619a1aed36611eb383b`);
+its existing reviewed normalization, claim, propagation and V1–V6 sections remain.
+Shared filing, quality, untrusted-content, lookup and model-role rules are reused.
+
+Source transport and content kind are independent. The router selects applicable
+compiled instructions before model use; mandatory selected Skills are eagerly
+included, not left to an optional Skill read. Meetings write before completing
+entity drafts, then verify and repair actual saved pages. Articles/ideas use
+author resolution and sourced analysis. Documents/media use format-aware content
+and entity propagation after extraction. Provider retrieval, OCR/STT and feed
+walking are not granted by these Skills. Publication procedures are retained as
+adapter requirements; publication input currently stops before a paid call.
+This explicit acquisition gap is not full GBrain execution parity.
+
+Entity propagation occurs through small writes within the same Agent task, after
+the source and meeting have been saved. The adopted entity section must not demand
+a single combined batch. Subject coverage includes the Workspace company when
+notable company processes are discussed. Claim verification preserves quantitative
+units and final corrected agreements across prose, Takes and Timeline summaries,
+and flags conflicting source dates. V5 checks attendee names even without email
+fields; an ingested meeting still requires a passed verdict.
+An unknown source-event date remains unknown across prose, Takes and Timeline.
+Observation/export/ingestion dates do not establish when the event happened.
+Undated knowledge uses explicit Markdown prose and an empty Take date; the narrow
+Timeline operation is reserved for events with an evidenced date. Page metadata
+still uses the trusted processing day.
+Action attribution is checked separately for each request; missing owner
+placeholders and unresolved author roles remain unspecified.
+
+Qualification must separate upstream procedure conformance from provider and
+model execution. A copied Skill is neither a runtime nor a cost guarantee.
+Compare phase/operation order, source updates, entity/quote/backlink quality and
+saved-page verification on a fixed admitted sample. Retain role-wise calls,
+uncached input, cache writes, cache reads and output tokens, including failed and
+unknown attempts. Do not label local mocks or prior one-shot outcomes as a live
+reference run. No Dream workflow or synthesized new knowledge is introduced.
+
+The continuing task explicitly rechecks final agreements against earlier proposals
+before entity propagation. The Agent follows the adopted claim checks and V1–V6
+read/verify/repair instructions, then gives an ordinary final text report. New
+materializations have no additional server content-completion gate or finish Tool.
+Quotes, sections, speakers, links and read-back remain Skill responsibilities;
+a technically completed task is not an independent semantic quality verdict.
+The source outcome retains the Agent report and separate actual write receipts.
+Historical phase-only and structured-completion templates remain available solely
+for their pinned definitions, with their original stricter behavior intact.
+
+The continuing ingestion instructions use the existing `remember.timeline_add`
+page alternative for small evidenced events on existing pages. Current-knowledge
+changes and corrections keep the full read/edit/replace path. Durable `page_results`
+retain actual hashes without an extra model call or model-generated whole page.

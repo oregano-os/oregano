@@ -73,6 +73,11 @@ output_schema:
           enum:
             - meeting
             - discussion
+            - article
+            - idea
+            - document
+            - media
+            - publication
         original_url:
           type: string
           minLength: 1

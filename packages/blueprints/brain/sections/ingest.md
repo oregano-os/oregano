@@ -1,6 +1,6 @@
 ## Contract
 
-- Every fact written to a brain page carries an inline `[Source: ...]` citation with date and provenance.
+- Every fact written to a brain page carries a clickable, bracketed `Source:` citation with date and provenance.
 - Every entity mention creates a back-link from the entity's page to the page mentioning them (Iron Law).
 - Raw source versions are preserved through Records with readable original links on internal evidence pages; no parallel raw-file archive is introduced.
 - current-knowledge sections are rewritten with current best understanding, never appended to.
@@ -14,25 +14,39 @@ broken brain. See `skills/_brain-filing-rules.md` for format.
 
 ## Citation Requirements (MANDATORY)
 
-Every fact written to a brain page must carry an inline `[Source: ...]` citation.
+Every fact written to a brain page must carry a clickable inline citation with
+visible square brackets. Use an aliased internal link, not a bare prose label:
+`\[[[directory/slug|Source: {kind} "{title}", YYYY-MM-DD]]\]`.
+The outer escaped brackets are visible; the wiki alias is the clickable text.
+Use a canonical slug from the task/read results and an accurate source label.
 
-- **User's statements:** `[Source: User, {context}, YYYY-MM-DD]`
-- **Meeting data:** `[Source: Meeting "{title}", YYYY-MM-DD]`
-- **Email/message:** `[Source: email from {name} re: {subject}, YYYY-MM-DD]`
-- **Web content:** `[Source: {publication}, {URL}, YYYY-MM-DD]`
-- **Social media:** `[Source: X/@handle, YYYY-MM-DD](URL)` (include link)
-- **Synthesis:** `[Source: compiled from {sources}]`
+- **Meeting data on entity pages:** link to the meeting page using
+  `\[[[{{meeting_directory}}/review-example|Source: Meeting "Review", 2030-01-02]]\]`.
+- **On the meeting page itself:** cite its internal source page, avoiding a
+  self-link; retain `**Original source:** [[{{evidence_directory}}/review-example|Original transcript]]`.
+- **User statements, discussions, email, web or social content:** use the same
+  bracketed link to the retained evidence page, with the actual context/title/date.
+- **Synthesis:** link each supporting meeting/evidence page; never invent a target.
+
+Use the same visible citation in Current knowledge and Timeline. Keep only the
+readable Source citation; do not append a duplicate raw link or Source evidence
+comment. A cited meeting/content page must directly link to its evidence page,
+which retains the original-source URL. For `timeline_add`, put the readable
+citation in summary/detail and keep canonical source slugs in `evidence`; Core
+validates that the citation reaches those sources without adding hidden markup.
+Without a supplied citation, Core renders bracketed source links with the event
+date. Takes retain their direct evidence links; escape alias pipes inside table cells.
 
 ## Phases
 
-> **Router note:** Use this general procedure for selected discussions and the included meeting procedure for transcripts. Other specialized providers and procedures are outside this adoption.
+> **Router note:** Use this general procedure for discussions. The content router selects meeting-work for meetings, idea-work for articles/ideas, and media-work for complete document/media extracts. Publication enumeration precedes item ingestion and requires a separately available source adapter; provider identity does not determine content kind.
 
 1. **Parse the source.** Extract people, companies, dates, and events from the input.
 2. **For each entity mentioned:**
    - Read the entity's page with entity to check if it exists
    - If exists: update compiled_truth (rewrite current-knowledge section with new info, don't append)
    - If new: check notability gate, then store the page in the Brain with the appropriate type and slug
-3. **Append to timeline.** Add a timeline entry in the Brain for each event, with date, summary, and source citation.
+3. **Append to timeline.** For a simple event on an existing page, use `remember` with `timeline_add` (actual event date, single-line summary/detail and canonical evidence slugs), its read content hash and repository revision. Do not regenerate the page for this event alone. New pages, changed current knowledge and corrections still require a full read/edit/replacement.
 4. **Create cross-reference links.** Link entities in the Brain for every entity pair mentioned together, using the appropriate relationship type.
 5. **Back-link all entities.** Update EVERY mentioned entity's page with a back-link to this page (Iron Law).
 6. **Timeline merge.** The same event appears on ALL mentioned entities' timelines. If Alice met Bob at Acme Corp, the event goes on Alice's page, Bob's page, and Acme Corp's page.
@@ -84,7 +98,7 @@ language IS the insight. Don't paraphrase.
 - Timeline entries are reverse-chronological (newest first)
 - Every person/company mentioned gets a page if notable (see filing rules)
 - Link types come from the reviewed Workspace relationship mappings.
-- Source attribution: every timeline entry includes [Source: ...] citation
+- Source attribution: every timeline entry includes a clickable, bracketed Source citation
 - Back-links: every entity mention creates a back-link (Iron Law)
 - Filing: file by primary subject, not format or source (see filing rules)
 

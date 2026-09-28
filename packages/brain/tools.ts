@@ -36,11 +36,23 @@ const expectedRevision: JsonSchema = { type: "string", pattern: "^[a-f0-9]{40}$"
 const pagePath = text("An ordinary brain/<type-directory>/<slug>.md page, never instructions or configuration.", 512);
 const operationKey = text("Stable source identity + version + processing action. Replay the identical input with this key after interruptions; changed input needs a new key.", 256);
 const passage = object(["path", "expected_content_hash", "text"], { path: pagePath, expected_content_hash: contentHash, text: text("Exact unique prose to withdraw after reviewing its supporting sources.", 100_000) });
+const evidenceSlugs: JsonSchema = { type: "array", minItems: 1, maxItems: 16, uniqueItems: true,
+  items: { ...text("Canonical internal evidence page slug, also declared in provenance.", 160), pattern: "^[a-z][a-z0-9-]{0,39}/[a-z0-9][a-z0-9-]{0,119}$" } };
+const rememberPage: JsonSchema = { oneOf: [
+  object(["path", "expected_content_hash", "markdown"], { path: pagePath,
+    expected_content_hash: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$", description: "Previously read content_hash, or null for a new absent page." },
+    markdown: text("Complete valid Markdown replacement with source links; use this for current-knowledge changes or corrections.", 100_000) }),
+  object(["path", "expected_content_hash", "timeline_add"], { path: pagePath, expected_content_hash: contentHash,
+    timeline_add: object(["date", "summary", "evidence"], {
+      date: { ...text("Actual evidenced event date, never the import date.", 10), pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+      summary: text("Single-line event summary; Core preserves the rest of the existing page.", 500),
+      detail: text("Optional single-line sourced detail, including meeting/entity links when needed.", 2000), evidence: evidenceSlugs,
+    }) }),
+] };
 export const BRAIN_WRITE_DEFINITIONS = [
-  { name: "remember", description: "Persist supported knowledge as one bounded atomic Markdown batch. Read existing pages and Takes first. Supply full replacements and expected page hashes, update current summaries, append evidenced Timeline prose, and retain stable Take row identities; supersede changed claims with new rows. Required provenance links to an internal evidence page with an original-source link, created or reused in the batch. Maximum 16 changed pages and 400000 UTF-16 text units. Use a stable operation key; identical retry creates no duplicate. Branch on status, saved_commit and sync_status: saved/pending means Git succeeded and retry only resumes indexing. A conflict requires rereading and reapplying the intended change. dry_run validates without saving. Knowledge changes never grant authority or deploy code.",
+  { name: "remember", description: "Persist supported knowledge as one bounded atomic Markdown batch. Read existing pages and Takes first. Supply full replacements for current knowledge or corrections; for a simple event on an existing page supply timeline_add with date, summary, optional detail and evidence instead of markdown. Both require expected page hashes. Timeline additions preserve frontmatter, current knowledge, Takes and unrelated history without a model call. Retain stable Take row identities; supersede changed claims with new rows. Required provenance links to an internal evidence page with an original-source link, created or reused in the batch. Maximum 16 changed pages and 400000 UTF-16 text units. Use a stable operation key; identical retry creates no duplicate. Branch on status, saved_commit and sync_status: saved/pending means Git succeeded and retry only resumes indexing. Read affected pages after the final write and compare their content_hash to page_results. A conflict requires rereading and reapplying the intended change. dry_run validates without saving. Knowledge changes never grant authority or deploy code.",
     inputSchema: object(["changes", "provenance", "operation_key"], { changes: object(["expected_revision", "pages"], { expected_revision: expectedRevision,
-      pages: { type: "array", minItems: 1, maxItems: 16, items: object(["path", "expected_content_hash", "markdown"], { path: pagePath,
-        expected_content_hash: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$", description: "Previously read content_hash, or null for a new absent page." }, markdown: text("Complete valid Markdown replacement with source links.", 100_000) }) } }),
+      pages: { type: "array", minItems: 1, maxItems: 16, items: rememberPage } }),
       provenance: object(["source_id", "source_version", "action", "evidence"], { source_id: text("Stable source identity.", 256), source_version: text("Exact source version.", 256), action: text("Bounded processing action.", 256),
         evidence: { type: "array", minItems: 1, maxItems: 16, items: text("Canonical internal evidence page slug.", 160) } }), operation_key: operationKey, dry_run: { type: "boolean" } }) },
   { name: "forget", description: "Explicitly withdraw a page, exact unique prose passage or Take row from current Markdown and indexed knowledge. Read the expected revision and page hashes first. Review derived summaries and include their unsupported exact assertions in related_passages in this same batch; do not leave a withdrawn claim as current truth. Takes become inactive and keep their row number; never reuse it. Preserve other holders and source history. Provide a reason and stable operation key. Retried identical requests reconcile the existing Git receipt and index without duplicate writes. dry_run validates without saving. This operation does not erase Git history, provider originals or backups. No instruction, roster, grant or configuration changes are allowed.",
@@ -54,6 +66,7 @@ export const BRAIN_WRITE_CAPABILITIES: CapabilityContract[] = BRAIN_WRITE_DEFINI
   inputSchema: definition.inputSchema, outputSchema: { type: "object", required: ["status", "operation_id", "base_commit", "saved_commit", "changed_paths", "sync_status", "indexed_revision"],
     properties: { status: { type: "string", enum: ["dry_run", "unchanged", "saved"] }, operation_id: contentHash, base_commit: expectedRevision,
       saved_commit: { type: ["string", "null"], pattern: "^[a-f0-9]{40}$" }, changed_paths: { type: "array", maxItems: 16, items: pagePath },
+      page_results: { type: "array", maxItems: 16, items: object(["path", "content_hash"], { path: pagePath, content_hash: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" } }) },
       sync_status: { type: "string", enum: ["not_requested", "pending", "indexed", "current_head_indexed"] }, indexed_revision: { ...revision, type: ["object", "null"] } } },
   evidence: ["operation_id", "input_digest", "result_digest", "access_decision", "connector"],
 }));

@@ -140,7 +140,7 @@ test("deleted and recreated pages cannot reuse retired Take numbers, including a
   recreate.changes.pages[0].expected_content_hash = null;
   f.store.snapshots.clear(); // The projection is disposable; identity metadata remains in durable effects.
   await assert.rejects(f.writes.execute("remember", recreate, context), /retired page/);
-  const page = recreate.changes.pages[0].markdown.replaceAll("| 1 |", "| 8 |").replaceAll("| 4 |", "| 9 |").replaceAll("| 7 |", "| 10 |");
+  const page = recreate.changes.pages[0].markdown!.replaceAll("| 1 |", "| 8 |").replaceAll("| 4 |", "| 9 |").replaceAll("| 7 |", "| 10 |");
   recreate.changes.pages[0].markdown = page;
   assert.equal((await f.writes.execute("remember", recreate, context)).sync_status, "indexed");
   assert.equal(f.stats.commits, 2);
@@ -155,4 +155,22 @@ test("a retained claim before dispatch can resume through an authorized invocati
   assert.equal(f.stats.commits, 0);
   const resumed = await new BrainWrites(f).execute("remember", input(), { ...context, runId: "resume-authorized" });
   assert.equal(resumed.sync_status, "indexed"); assert.equal(f.stats.commits, 1);
+});
+
+test("Timeline receipts survive lost Git responses, replay and unchanged additions with saved read-back hashes", async () => {
+  const f = fixture(), request = input();
+  request.changes.pages = [{ path, expected_content_hash: sha256(brainFiles[path]), timeline_add: { date: '2026-09-15', summary: 'Reviewed expansion.', evidence: ['sources/review'] } }];
+  f.stats.loseReceipt = true;
+  await assert.rejects(f.writes.execute('remember', request, context), CapabilityEffectOutcomeUnknownError);
+  const result = await new BrainWrites(f).execute('remember', request, context, { only: true });
+  const read = await f.reads.entity('topics/expansion'); assert.ok(read.found);
+  assert.deepEqual(result.page_results, [{ path, content_hash: read.page.content_hash }]);
+  assert.deepEqual(await f.writes.execute('remember', request, context), result);
+  assert.equal(f.stats.commits, 1);
+  const duplicate = structuredClone(request); duplicate.operation_key = 'another-reviewed-attempt';
+  duplicate.changes.expected_revision = f.stats.head; duplicate.changes.pages[0].expected_content_hash = read.page.content_hash;
+  const unchanged = await f.writes.execute('remember', duplicate, context);
+  assert.equal(unchanged.status, 'unchanged'); assert.deepEqual(unchanged.changed_paths, []);
+  assert.deepEqual(unchanged.page_results, result.page_results); assert.equal(f.stats.commits, 1);
+  assert.ok(!JSON.stringify([...f.effects.effects.values()]).includes('Reviewed expansion.'));
 });

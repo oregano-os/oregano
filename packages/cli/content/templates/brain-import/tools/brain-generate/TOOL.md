@@ -30,7 +30,7 @@ output_schema:
     text:
       type: string
       minLength: 1
-      maxLength: 20000
+      maxLength: 60000
 evidence:
   - text
 failure: Reject incomplete or conflicting evidence. No substitute input or

@@ -487,8 +487,9 @@ test("the runtime accepts only an explicitly bounded Tool execution window", () 
     connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()],
   };
   assert.doesNotThrow(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 30_000 }));
-  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 99 }), /100 to 120000 ms/u);
-  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 120_001 }), /100 to 120000 ms/u);
+  assert.doesNotThrow(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 180_000 }));
+  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 99 }), /100 to 180000 ms/u);
+  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 180_001 }), /100 to 180000 ms/u);
 });
 
 test("an approved Connector failure is recorded as failed, never left dispatched", async () => {

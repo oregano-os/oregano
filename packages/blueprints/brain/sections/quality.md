@@ -4,14 +4,28 @@ Cross-cutting quality rules for all brain-writing skills.
 
 ## Citations (MANDATORY)
 
-Every fact written to a brain page must carry an inline `[Source: ...]` citation.
+Every fact written to a brain page must carry a clickable inline citation with
+visible square brackets. Use an aliased internal link, not a bare prose label:
+`\[[[directory/slug|Source: {kind} "{title}", YYYY-MM-DD]]\]`.
+The outer escaped brackets are visible; the wiki alias is the clickable text.
+Use a canonical slug from the task/read results and an accurate source label.
 
-- **User's statements:** `[Source: User, {context}, YYYY-MM-DD]`
-- **Meeting data:** `[Source: Meeting "{title}", YYYY-MM-DD]`
-- **Email/message:** `[Source: email from {name} re: {subject}, YYYY-MM-DD]`
-- **Web content:** `[Source: {publication}, {URL}, YYYY-MM-DD]`
-- **Social media:** `[Source: X/@handle, YYYY-MM-DD](URL)`
-- **Synthesis:** `[Source: compiled from {sources}]`
+- **Meeting data on entity pages:** link to the meeting page using
+  `\[[[{{meeting_directory}}/review-example|Source: Meeting "Review", 2030-01-02]]\]`.
+- **On the meeting page itself:** cite its internal source page, avoiding a
+  self-link; retain `**Original source:** [[{{evidence_directory}}/review-example|Original transcript]]`.
+- **User statements, discussions, email, web or social content:** use the same
+  bracketed link to the retained evidence page, with the actual context/title/date.
+- **Synthesis:** link each supporting meeting/evidence page; never invent a target.
+
+Use the same visible citation in Current knowledge and Timeline. Keep only the
+readable Source citation; do not append a duplicate raw link or Source evidence
+comment. A cited meeting/content page must directly link to its evidence page,
+which retains the original-source URL. For `timeline_add`, put the readable
+citation in summary/detail and keep canonical source slugs in `evidence`; Core
+validates that the citation reaches those sources without adding hidden markup.
+Without a supplied citation, Core renders bracketed source links with the event
+date. Takes retain their direct evidence links; escape alias pipes inside table cells.
 
 ### Source precedence (highest to lowest)
 

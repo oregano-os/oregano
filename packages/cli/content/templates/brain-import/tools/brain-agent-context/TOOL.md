@@ -15,6 +15,7 @@ input_schema:
     - gate
     - history
     - directories
+    - processing_instant
   properties:
     prepared:
       type: object
@@ -24,12 +25,17 @@ input_schema:
       type: object
     directories:
       type: object
+    processing_instant:
+      type: string
+      minLength: 1
+      maxLength: 40
 output_schema:
   type: object
   additionalProperties: false
   required:
     - route
     - model_profile
+    - model_task
     - task
     - provenance
   properties:
@@ -43,6 +49,9 @@ output_schema:
     model_profile:
       type: string
       enum: [reasoning, deep]
+    model_task:
+      type: string
+      enum: [brain.ingest, brain.ingest.deep]
     provenance:
       type: object
       additionalProperties: false

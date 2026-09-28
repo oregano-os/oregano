@@ -1,0 +1,41 @@
+version: 3
+plan_id: brain-release-2026-09-28
+created: 2026-09-28
+title: Release continuing Brain Agent execution
+objective: Release Core 0.17.0 with the opt-in continuing Agent completion and recovery contract, bounded task model binding and reviewed subject taxonomy. Preserve historical definitions and current channel controls.
+non_goals:
+  - Change historical task budgets or company-specific operating policy.
+placement: core
+change_class: behavior
+files_expected:
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/testkit/fixtures/*/.companyos/compatibility.yaml
+  - .oregano/changes/2026-09-28-brain-release.yaml
+  - package.json
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.workflow-engine]
+architecture:
+  placement:
+    core: Version the newly adopted opt-in continuing Agent execution contract and reusable Brain mechanisms.
+    packages: Retain the portable Brain ingestion template and Skills.
+    workspace: Consumers explicitly adopt the new task completion and taxonomy configuration.
+    instance: Deploy exact reviewed commits and preserve model bindings, historical runs and rollback identity.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The release remains company-independent and preserves older Artifact behavior.
+rollback: Restore the previous deployed Core and Workspace pairing. Preserve saved knowledge, model attempts, source admissions and durable receipts; never replay a completed source to roll back.

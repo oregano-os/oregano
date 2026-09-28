@@ -157,3 +157,22 @@ test("processing scope rejects over-capacity, duplicate, foreign or malformed so
   }
   assert.throws(() => parseTranscriptImportBindings([{ ...binding, processingField: "absent" }], f.h.artifact, [binding.workflowId]));
 });
+
+test('separate reviewed qualification identity executes the same admitted source while retaining normal deduplication', async () => {
+ const f=await fixture(), original=await f.open('ordinary'), done=await f.h.engine().advance(original.runId);
+ const artifact=structuredClone(f.h.artifact), workflow=artifact.workflows!.find(w=>w.id===f.binding.workflowId)!;
+ workflow.id='source-qualification'; const {manifestHash,...definition}=workflow; workflow.manifestHash=sha256(definition);
+ const {artifactHash,...body}=artifact;artifact.artifactHash=sha256({...body,provenance:{...body.provenance,builtAt:undefined}});
+ const qualified=engineFixture({artifact,store:f.h.store,control:f.h.control,timerStore:f.h.timerStore,transcriptImports:[{...f.binding,workflowId:workflow.id}]});
+ const cohortKey=`brain-import-cohorts:${sha256({instance_id:artifact.instance.id,import_id:f.binding.importId})}`;
+ const cohortBefore=structuredClone(await f.h.control.getEffect(cohortKey));
+ const request={workflowId:workflow.id,requestId:'qualification',principal:ENGINE_OPERATOR,fields:{source:'a',version:'content-version'}};
+ const run=await qualified.engine().openOperator(request);
+ assert.notEqual(run.runId,original.runId);assert.deepEqual(run.state.sourceAdmission,original.state.sourceAdmission);
+ const qualifiedDone=await qualified.engine().advance(run.runId);assert.equal(qualifiedDone?.state.status,'done');
+ assert.deepEqual(await qualified.engine().openOperator({...request,requestId:'retry'}),qualifiedDone);
+ assert.deepEqual(await f.open('ordinary-redelivery'),done);
+ assert.deepEqual(await f.h.store.read(original.instanceId,original.runId),done);
+ assert.deepEqual(await f.h.control.getEffect(cohortKey),cohortBefore,'Qualification cannot allocate or replace admission slots');
+ await assert.rejects(qualified.engine().openOperator({...request,fields:{source:'c',version:'v1'}}),/outside/);
+});

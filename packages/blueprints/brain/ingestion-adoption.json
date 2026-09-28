@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "upstream": {
+    "repository": "garrytan/gbrain",
+    "commit": "668b9bac302705f3bca0ae4792a49fab0a79a74e"
+  },
+  "meeting_source_sha256": "949a491b98e7dabe51e3d1640f49a7dbfacb543703d22619a1aed36611eb383b",
+  "meeting_note": "The meeting Skill is byte-identical to the existing pinned adoption. Existing meeting sections and shared filing/quality/lookup rules remain authoritative. Content procedures below are scoped adaptations, not claims of full upstream provider capability.",
+  "skills": [
+    {
+      "id": "idea-work",
+      "path": "sections/idea-work.md",
+      "sha256": "a4b4e098cacdfe23481a0c5ff7d151fcdfe27e0954273c02fcf402a8b5836666",
+      "source": "skills/idea-ingest/SKILL.md",
+      "source_sha256": "01ef449b7d5df52553cfd7c05d1365085058eda32de4fad3e67a22311ccd49f5",
+      "adaptations": [
+        "Provider acquisition and raw-file storage are fulfilled by complete Records, not Agent provider calls.",
+        "Existing directory mappings, Brain Tools and durable Git/index receipts replace upstream CLI/storage operations.",
+        "No Dream, additional synthesis process, new directory or automatic retry is adopted.",
+        "Missing acquisition capabilities remain explicit; publication enumeration is not executable in the import workflow."
+      ]
+    },
+    {
+      "id": "media-work",
+      "path": "sections/media-work.md",
+      "sha256": "63aa6733d712af342a998cddadae36008a7b8d3e1e40b69ccd3943346a6673c8",
+      "source": "skills/media-ingest/SKILL.md",
+      "source_sha256": "4cb0dee1011dce0d5a65dfa4610820511ed6e2da005c7ba15500c79f0b9bcb2f",
+      "adaptations": [
+        "Provider acquisition and raw-file storage are fulfilled by complete Records, not Agent provider calls.",
+        "Existing directory mappings, Brain Tools and durable Git/index receipts replace upstream CLI/storage operations.",
+        "No Dream, additional synthesis process, new directory or automatic retry is adopted.",
+        "Missing acquisition capabilities remain explicit; publication enumeration is not executable in the import workflow."
+      ]
+    },
+    {
+      "id": "blog-work",
+      "path": "sections/blog-work.md",
+      "sha256": "e759e7727bac35175215c5684420345cfe1c7a3c235f321f1a114ac93f89bb30",
+      "source": "skills/blog-ingest/SKILL.md",
+      "source_sha256": "8fad548e780b56a8e79dd08f0bc7a79eb84aa03447798983acef949e4abefd3f",
+      "adaptations": [
+        "Provider acquisition and raw-file storage are fulfilled by complete Records, not Agent provider calls.",
+        "Existing directory mappings, Brain Tools and durable Git/index receipts replace upstream CLI/storage operations.",
+        "No Dream, additional synthesis process, new directory or automatic retry is adopted.",
+        "Missing acquisition capabilities remain explicit; publication enumeration is not executable in the import workflow."
+      ]
+    }
+  ]
+}
