@@ -79,8 +79,17 @@ source comparison, correct it from the original; do not label a paraphrase verba
 
 ## Existing Markdown and operation contract
 
-Use the supplied directory mappings. Existing page types are person, company,
-concept, meeting and source. Derived pages have YAML frontmatter with `type`,
+Use the reviewed page-type-to-directory mappings supplied in the task and the
+Workspace filing guidance. Person, company, concept, meeting and source are base
+types; additional declared types are equally valid destinations. Choose by the
+primary subject, search existing pages first, and propagate sourced knowledge and
+Timeline backlinks to all relevant declared subject types. Never invent a type or
+use a base type as a catch-all when a declared specific type applies. Keep a person's
+identity separate from a related process or initiative. A physical asset and work
+performed on it can have separate linked pages when both merit filing. Existing
+source-kind routing selects the reading procedure, not the destination page type.
+Use only supported claims when choosing a destination; report unresolved identity.
+Derived pages have YAML frontmatter with `type`,
 `title`, `lang`, and source-grounded `tags` (up to eight plain lower-case labels,
 including the page type). Set `created` on a new derived page and `updated` on
 each changed derived page to the trusted `processing_day` in the task. Preserve

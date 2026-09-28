@@ -475,3 +475,24 @@ test("later source versions retain pages from text-completed reports without inv
  assert.equal(retained.status,'reconciliation-required');assert.equal(retained.requests[0].slug,'people/example');
  await assert.rejects(execute({...base,agent_report:''}),/final Agent report/);
 });
+
+test("reviewed additional subjects survive materialization and isolated source context", async () => {
+ const result=materializeBrainWorkflow({...input,page_types:{initiative:'initiatives',asset:'assets'},filing_guidance:'Keep an asset separate from work performed on it.'});
+ const config=YAML.parse(result.materials['workflows/brain-import/config.yaml']);
+ const skill=result.materials['agents/analyst/skills/brain-task/SKILL.md'];
+ assert.match(skill,/"initiative":"initiatives"/);assert.match(skill,/Keep an asset separate/);
+ const tool=loadCompanyTool(result.materials,'analyst','brain-agent-context');
+ const run=(directories:any)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,input:{
+  prepared:{source_complete:true,source:{identity:'source:1',version:'v1',original_url:'https://example.invalid/source',context:{companyos_record_version:'a'.repeat(64),companyos_retained_source:{characters:4}}},segments:[{data:{segment:{start:0,end:4,text:'Text'}}}]},
+  gate:{coverage_complete:true,route:'reasoning'},history:{requests:[]},directories,processing_instant:'2030-01-02T10:00:00Z'},
+  context:{instanceId:'synthetic',runId:'types',stepId:'context',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:[],invokeCapability:async()=>{throw Error('No provider');}}) as Promise<any>;
+ assert.deepEqual((await run(config.page_directories)).task.directories,config.page_directories);
+ for(const mappings of [{asset:'../assets'},{asset:'people'},{company:'partners'},Object.fromEntries(Array.from({length:65},(_,i)=>['kind'+i,'folder'+i]))]) {
+  assert.throws(()=>materializeBrainWorkflow({...input,page_types:mappings}),/reviewed page/);
+ }
+ await assert.rejects(run({...config.page_directories,asset:'../assets'}),/directory mappings/);
+ await assert.rejects(run({...config.page_directories,asset:'people'}),/directory mappings/);
+ const missing={...config.page_directories};delete missing.source;
+ await assert.rejects(run(missing),/directory mappings/);
+ assert.throws(()=>materializeBrainWorkflow({...input,filing_guidance:'x'.repeat(4001)}),/filing guidance/);
+});

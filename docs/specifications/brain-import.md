@@ -466,3 +466,23 @@ knowledge. Record both identities, the source-version equality and the unchanged
 cohort proof. Repeated delivery within either Workflow still deduplicates. A
 normal unchanged delivery proves deduplication, not execution of a revised
 procedure. `continueUnwrittenSource` remains limited to eligible unwritten runs.
+
+## Workspace subject filing in continuing imports
+
+The portable `materializeBrainWorkflow` helper accepts optional `page_types`
+(type-to-directory mappings) and `filing_guidance` from reviewed Workspace
+configuration. The five base mappings remain required and cannot be overridden
+inconsistently. The combined mapping is bounded to 64 types with distinct safe
+directories; guidance is bounded to 4,000 characters. The resulting continuing
+Agent skill includes the complete mapping and guidance, and source task context
+preserves every declared destination. The Brain write validator still enforces
+the actual Workspace declaration; authoring inputs do not grant new authority.
+
+Content-kind routing chooses the interpretation procedure (for example meeting
+or discussion). Subject filing chooses one or more knowledge destinations using
+the declared types, existing identities and source evidence. Additional types
+must not be silently reduced to the base concept/company vocabulary. Read before
+updating and retain provenance and meaningful backlinks for each affected subject.
+Historical phased imports retain their original contracts; this extension applies
+to the continuing Agent workflow. Static tests prove mapping delivery and rejection
+of invalid mappings, not the accuracy of a model's semantic filing decisions.

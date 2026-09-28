@@ -14,6 +14,9 @@ const phaseNames = { normalization: "meeting-normalize", resolution: "meeting-re
 export interface BrainWorkflowInputs {
   /** Explicit independent Workflow identity; never restarts an existing run. */
   workflow_id?: string;
+  /** Additional reviewed Workspace page types; default types remain compatible. */
+  page_types?: Record<string, string>;
+  filing_guidance?: string;
   prompt: BrainPromptInputs;
   source_projection: string;
   source_routes?: Array<{ identity_prefix: string; projection: string }>;
@@ -40,9 +43,22 @@ const frontmatter = (text: string) => {
 
 /** Pure authoring helper: returns ordinary reviewed files; never writes, grants, binds or activates. */
 export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
-  if (!input || Object.keys(input).filter(key => !["source_routes", "workflow_id"].includes(key)).sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
+  if (!input || Object.keys(input).filter(key => !["source_routes", "workflow_id", "page_types", "filing_guidance"].includes(key)).sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
   const workflowId = input.workflow_id ?? "brain-import";
   if (!/^[a-z][a-z0-9-]{0,62}$/.test(workflowId)) throw new Error("Invalid reviewed Brain Workflow identity");
+  const directories = input.prompt.directories;
+  const pageDirectories: Record<string, string> = { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory };
+  if (input.page_types !== undefined) {
+    if (!input.page_types || typeof input.page_types !== "object" || Array.isArray(input.page_types)
+      || Object.keys(input.page_types).length > 64) throw new Error("Invalid reviewed page types");
+    for (const [type, directory] of Object.entries(input.page_types)) {
+      if (!/^[a-z][a-z0-9_-]{0,63}$/.test(type) || typeof directory !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(directory)
+        || (Object.hasOwn(pageDirectories, type) && pageDirectories[type] !== directory)) throw new Error("Invalid or inconsistent reviewed page types");
+      Object.defineProperty(pageDirectories, type, { value: directory, enumerable: true, configurable: true, writable: true });
+    }
+  }
+  if (Object.keys(pageDirectories).length > 64 || new Set(Object.values(pageDirectories)).size !== Object.keys(pageDirectories).length) throw new Error("Ambiguous reviewed page directories");
+  if (input.filing_guidance !== undefined && (typeof input.filing_guidance !== "string" || input.filing_guidance.length > 4000)) throw new Error("Invalid reviewed filing guidance");
   const prompts = materializeBrainPrompts(input.prompt);
   const transcripts = validateTranscriptSelectionPolicy(input.transcripts);
   const history = validateTranscriptSelectionPolicy({ mode: "bounded", max_transcripts: 1, meeting_date: { start_at: input.history_from, end_at: null } }).meeting_date.start_at;
@@ -107,7 +123,7 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     return [entry.id, [text]];
   }));
   const groups = {
-    task: [taskInstructions, `Reviewed perspective: ${input.prompt.perspective}\nDirectory mappings: ${JSON.stringify(input.prompt.directories)}`, ...["filing", "quality", "untrusted", "lookup", "model-roles"].map(section)],
+    task: [taskInstructions, `Reviewed perspective: ${input.prompt.perspective}\nPage type to directory mappings: ${JSON.stringify(pageDirectories)}${input.filing_guidance ? `\nReviewed Workspace filing guidance: ${input.filing_guidance}` : ""}`, ...["filing", "quality", "untrusted", "lookup", "model-roles"].map(section)],
     "meeting-work": ["meeting-contract", "meeting-normalize", "meeting-page"].map(section),
     "entity-work": ["meeting-entities", "enrich"].map(section),
     "verify-work": ["meeting-verify", "meeting-report"].map(section),
@@ -120,11 +136,10 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     if (text.length > 30000 || text.includes("{{")) throw new Error("Incremental Agent Skill exceeds its reviewed instruction bound");
     return [path, text];
   }));
-  const directories = input.prompt.directories;
   const config = { schema_version: 2, id: workflowId, transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, source_routes: structuredClone(sourceRoutes), segment_characters: input.segment_characters,
     prompts: { triage: binding("triage"),
       ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
-    page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
+    page_directories: pageDirectories,
     ingestion: { routes: Object.fromEntries(Object.entries({
       meeting: ["meeting-work", "entity-work", "verify-work"],
       discussion: ["source-work", "entity-work"],

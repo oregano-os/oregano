@@ -8,7 +8,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  let text='',end=0;
  for(const entry of prepared.segments){const part=entry.data.segment;if(part.start!==end||part.end!==part.start+part.text.length)throw Error('Source segments are not complete and ordered');text+=part.text;end=part.end;}
  if(end!==source.context.companyos_retained_source.characters)throw Error('Full original coverage is required');
- if(Object.keys(directories).sort().join(',')!=='company,concept,meeting,person,source'||Object.values(directories).some((v:any)=>typeof v!=='string'||!/^[a-z][a-z0-9-]{0,39}$/.test(v)))throw Error('Reviewed directory mappings are required');
+ if(!directories||typeof directories!=='object'||Array.isArray(directories)||Object.keys(directories).length>64||!['company','concept','meeting','person','source'].every(key=>Object.hasOwn(directories,key))||Object.keys(directories).some(key=>!/^[a-z][a-z0-9_-]{0,63}$/.test(key))||new Set(Object.values(directories)).size!==Object.keys(directories).length||Object.values(directories).some((v:any)=>typeof v!=='string'||!/^[a-z][a-z0-9-]{0,39}$/.test(v)))throw Error('Reviewed directory mappings are required');
  if(typeof processing_instant!=='string'||!/^\d{4}-\d{2}-\d{2}T/.test(processing_instant)||!Number.isFinite(Date.parse(processing_instant)))throw Error('Trusted workflow processing instant is required');
  const processing_day=new Date(processing_instant).toISOString().slice(0,10);
  const slug=directories.source+'/import-'+source.context.companyos_record_version;

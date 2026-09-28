@@ -1,0 +1,40 @@
+version: 3
+plan_id: brain-page-taxonomy-2026-09-28
+created: 2026-09-28
+title: Carry reviewed Workspace page types into continuing Brain ingestion
+objective: Accept bounded additional Workspace page mappings and filing guidance in the portable import authoring helper and preserve them in the continuing Agent task. Keep content-kind routing separate from subject filing.
+non_goals:
+  - Add company taxonomy to Core or activate imports or deployments.
+  - Change historical phased workflows or introduce new authority.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-28-brain-page-taxonomy.yaml
+  - scripts/materialize-brain-workflow.ts
+  - packages/blueprints/brain/agent-instructions.md
+  - packages/cli/content/templates/brain-import/manifest.json
+  - packages/cli/content/templates/brain-import/tools/brain-agent-context/execute.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/brain-import.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.brain-import]
+architecture:
+  placement:
+    core: Reuse Brain type validation and governed reads and writes.
+    packages: Extend portable authoring and continuing import guidance with reviewed page mappings.
+    workspace: Own type names, directory mappings, filing rules and knowledge migrations.
+    instance: Preserve credentials, projection, run history and deployment identity.
+  mechanisms_extended:
+    - mechanism: toolset-resolver
+      reason: Carry reviewed Workspace instructions into existing bounded Agent skills and task context.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Workspace may add subject types without hardcoded company vocabulary or another router.
+rollback: Restore previous authoring inputs for new artifacts. Preserve source evidence and historical runs; reverse Workspace page migration with its references together.
