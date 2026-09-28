@@ -712,3 +712,8 @@ a whole workflow or bypass Records checks to recover one read. Before recovering
 a stopped publication, inspect durable effects and provider receipts; termination
 of its sandbox does not cancel an already dispatched Connector request. Late IPC
 responses cannot revive the worker or dispatch subsequent calls.
+
+Core 0.17.0 releases the opt-in continuing Agent completion and output-recovery
+contract described above. Existing immutable Artifacts retain their original
+completion modes, budgets and failure policies. Adoption requires an exact
+reviewed Workspace/Instance build; a version change does not resume old runs.
