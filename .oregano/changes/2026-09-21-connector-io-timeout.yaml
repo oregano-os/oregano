@@ -1,0 +1,55 @@
+version: 3
+plan_id: connector-io-timeout-2026-09-21
+created: "2026-09-21"
+title: Allow bounded Connector I/O beyond the pure Tool deadline
+objective: Release Core 0.16.1 with a bounded sixty-second Connector Tool deadline and safe handling of late sandbox replies.
+non_goals:
+  - Retry external effects automatically or relax grants, approval, scan completeness or idempotency.
+  - Add company data, provider credentials or new runtime permissions.
+placement: core
+change_class: security
+files_expected:
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - package.json
+  - packages/runtime/companyos-runtime.ts
+  - packages/tool-sdk/isolated-runner.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/tool-sdk-security.test.ts
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+  - .oregano/changes/2026-09-21-connector-io-timeout.yaml
+tests:
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/tool-sdk-security.test.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - packages/testkit/tests/slack-communication-connector.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [guide.author-company-tool, operations.workflow-engine]
+architecture:
+  placement:
+    core: Enforce bounded Tool execution and stop sandbox IPC safely after settlement.
+    packages: Existing declared capabilities continue through the same Connector boundary.
+    workspace: Business selection, schedules, recipients and Tools remain Workspace-owned.
+    instance: Operators retain exact deployed provenance and authorize stopped-run recovery.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Allow existing privileged Connector I/O a finite wall-clock budget without increasing grants.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve durable effect outcomes and do not dispatch calls or send sandbox replies after termination.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies and providers receive the same bounded Connector I/O behavior, including Records and communications.
+rollback: Restore the previous exact Core and Artifact deployment; preserve run and effect receipts. No database migration.

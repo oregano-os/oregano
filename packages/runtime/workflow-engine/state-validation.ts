@@ -2,7 +2,7 @@ import { validateSourceContinuation } from "./source-continuation.ts";
 import { validateAgentState } from "./agent-state.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { RunMeta } from "../../state-store/interface.ts";
-import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, WorkflowRunIdentity } from "../../state-store/workflow-engine.ts";
+import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, WorkflowRunIdentity, WorkflowTriggerEvent } from "../../state-store/workflow-engine.ts";
 import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { workflowReviewDeliveryDigest } from "./review-notice.ts";
@@ -35,6 +35,21 @@ export const workflowAssignmentKey = (instanceId: string, conversation: Workflow
 export const workflowPublicationKey = (instanceId: string, conversation: WorkflowConversation, messageId: string): string =>
   sha256({ conversation: workflowAssignmentKey(instanceId, conversation), publicationMessageId: messageId });
 
+const EVENT_FIELDS = ["kind", "event_id", "resource_binding", "work_item_id", "group_id", "field", "actor_id", "occurred_at"] as const;
+/** Bounded provider event identity; the group is informative and may be empty. */
+export function validateWorkflowTriggerEvent(value: unknown): WorkflowTriggerEvent {
+  safeObject(value);
+  const event = value as Record<string, unknown>;
+  if (Object.keys(event).some((key) => !(EVENT_FIELDS as readonly string[]).includes(key)) || EVENT_FIELDS.some((key) => typeof event[key] !== "string")) throw new Error("Workflow event identity requires exact bounded string fields");
+  for (const key of ["kind", "event_id", "resource_binding", "work_item_id", "actor_id"] as const) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$/.test(event[key] as string)) throw new Error(`Workflow event identity field '${key}' is invalid`);
+  }
+  if ((event.group_id as string).length > 255 || /[\u0000-]/.test(event.group_id as string)) throw new Error("Workflow event identity field 'group_id' is invalid");
+  if (event.field !== "" && !/^[a-z][a-z0-9_]{0,62}$/.test(event.field as string)) throw new Error("Workflow event identity field 'field' is invalid");
+  workflowInstant(event.occurred_at as string);
+  return Object.fromEntries(EVENT_FIELDS.map((key) => [key, event[key]])) as unknown as WorkflowTriggerEvent;
+}
+
 export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: WorkflowMutableState, meta: RunMeta, artifact: CompanyOSArtifact): void {
   assertWorkflowArtifact(artifact);
   for (const value of [identity.instanceId, identity.runId, identity.workflowId, identity.originKey, identity.subjectPrincipal]) identifier(value);
@@ -45,6 +60,10 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
   const workflow = artifact.workflows?.find((candidate) => candidate.id === identity.workflowId);
   const agent = artifact.agents.find((candidate) => candidate.id === workflow?.agentId);
   if (!workflow || !agent || identity.instanceId !== artifact.instance.id || identity.artifactHash !== artifact.artifactHash || identity.manifestHash !== workflow.manifestHash) throw new Error("Workflow creation differs from its pinned Artifact");
+  if (workflow.trigger.kind === "event") {
+    if (!identity.trigger.event) throw new Error("Event workflow creation requires its verified provider event");
+    if (validateWorkflowTriggerEvent(identity.trigger.event).event_id !== identity.fields.event_id) throw new Error("Event identity differs from its trusted instance field");
+  } else if (identity.trigger.event) throw new Error("Only event workflows carry a provider event");
   if (identity.runId !== workflowRunId(identity)) throw new Error("Workflow run ID differs from its opening identity");
   if (identity.originDigest !== workflowOriginDigest(identity)) throw new Error("Workflow opening digest differs from its immutable input");
   if (Object.keys(identity.fields).some((field) => !workflow.instance.fields.includes(field)) || workflow.instance.key.some((field) => !identity.fields[field])) throw new Error("Workflow fields do not match the declared instance key");

@@ -182,46 +182,6 @@
   {
     "code": "DOC032",
     "file": "docs/architecture/company-instance.md",
-    "text": "The current additive database manifest is `companyos-postgres@2.0.0`. It"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "path: a Neon point-in-time branch rehearses the additive migration, production"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "does not require duplicate Slack, Granola, model, or Vercel bindings, does not"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "The experimental `vercel-neon-slack` setup profile is the first bounded"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "deployment path for a new company. It starts from the release-matched Codex or"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "Claude Code runbook, creates or adopts one explicitly named private GitHub"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "repository, Vercel project, Neon Marketplace resource, and Slack Vercel Connect"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "Agent, one Slack workflow, a non-secret connection declaration, and an empty"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
     "text": "credentials, private keys, immutable Artifact content, and short-lived Slack"
   },
   {
@@ -273,21 +233,6 @@
     "code": "DOC032",
     "file": "docs/architecture/company-instance.md",
     "text": "documented Anthropic-then-OpenAI priority before the Gateway default. No"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "health, and requires one nonce-bound Slack input plus a real selected-model call"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "non-secret model response evidence are persisted in the same Neon conversation. Live"
   },
   {
     "code": "DOC032",
@@ -348,36 +293,6 @@
     "code": "DOC032",
     "file": "docs/architecture/company-instance.md",
     "text": "full reconciliation, and status. It requires `VERCEL_ENV=production`, the"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "The maintained Vercel Runner hosts the reusable Sprint orchestration library."
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "no company cadence. Authenticated Slack messages first pass roster"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "Monday handoff, weekday movement digest, and configured readiness checkpoints"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "The initial hosted rollout refreshes Monday-backed projections by bounded"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "polling and treats Slack as the interactive surface. Monday board-change"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/company-instance.md",
-    "text": "webhooks and Monday card chat are not initial-rollout requirements and require"
   },
   {
     "code": "DOC032",
@@ -456,61 +371,6 @@
   },
   {
     "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "The maintained Vercel Runner hosts that service behind an authenticated"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "authenticated Slack ingress. Workbench compiles the reviewed Sprint policy,"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "id, and currently accepts only a Monday hand-off intent. The actual compiled"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "compiled Agent owns the grant for proof attribution, the Slack conversational"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "real provider receipt opens the Slack thread; chase and report are forced to"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "Weekly features compile independently: a Workspace may enable only Monday"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "projection before processing due Monday, weekday, readiness, or Friday timers."
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "Monday comparison; scheduled readiness emits at most one focused direct"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "Monday polling for projections and Slack for interactive submissions. Monday"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "board-change webhooks and Monday card chat remain later extensions. A"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/oregano-core.md",
-    "text": "`oregano:knowledge/traverse` standard Tools. The maintained Postgres provider"
-  },
-  {
-    "code": "DOC032",
     "file": "docs/architecture/overview.md",
     "text": "BS --> CW[\"Isolated coding worker<br/>ACP: Claude Code or Codex\"]"
   },
@@ -567,11 +427,6 @@
   {
     "code": "DOC032",
     "file": "docs/architecture/system-boundaries.md",
-    "text": "The current `companyos-postgres@1.9.0` manifest is an additive Instance storage"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-boundaries.md",
     "text": "Slack, StateStore, or production-provider credential. Repository credentials"
   },
   {
@@ -612,37 +467,7 @@
   {
     "code": "DOC032",
     "file": "docs/architecture/system-of-proof.md",
-    "text": "The maintained DDL is `packages/state-postgres/knowledge-schema.sql`."
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-of-proof.md",
-    "text": "snapshots, Slack-normalized submissions, clock events, states, decisions,"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-of-proof.md",
-    "text": "An allowlisted Slack conversation first enters that schema as immutable"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-of-proof.md",
-    "text": "An optional test-only publication adds the ordinary Tool execution and Slack"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-of-proof.md",
-    "text": "scenario, compares the exact report digest, loads the chosen stored Monday"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/architecture/system-of-proof.md",
     "text": "Memory and Postgres execution tests use synthetic provider responses and human"
-  },
-  {
-    "code": "DOC032",
-    "file": "docs/glossary.md",
-    "text": "Instance Postgres database."
   },
   {
     "code": "DOC032",

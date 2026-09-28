@@ -37,20 +37,27 @@ export async function executeIsolatedCompanyTool(request: IsolatedToolExecution)
       child.kill();
       callback();
     };
+    // Connector I/O can finish after the Tool deadline. Never send to a dead
+    // worker, and handle the disconnect race through the IPC callback.
+    const send = (message: object) => {
+      if (settled || !child.connected) return;
+      child.send(message, (error) => { if (error) finish(() => reject(error)); });
+    };
     child.on("error", (error) => finish(() => reject(error)));
     child.on("exit", (code) => {
       if (!settled) finish(() => reject(new Error(`Company Tool sandbox exited with ${code}: ${stderr.trim()}`)));
     });
     child.on("message", async (message: any) => {
+      if (settled) return;
       if (message?.type === "capability-call") {
         try {
           if (!request.allowedCapabilities.includes(message.capability)) {
             throw new Error(`Capability '${message.capability}' is not in the resolved Tool contract.`);
           }
           const output = await request.invokeCapability(message.capability, message.input);
-          child.send({ type: "capability-result", callId: message.callId, ok: true, output });
+          send({ type: "capability-result", callId: message.callId, ok: true, output });
         } catch (error) {
-          child.send({
+          send({
             type: "capability-result",
             callId: message.callId,
             ok: false,
@@ -64,7 +71,7 @@ export async function executeIsolatedCompanyTool(request: IsolatedToolExecution)
         else finish(() => reject(new Error(message.error)));
       }
     });
-    child.send({
+    send({
       type: "execute",
       compiledSource: request.compiledSource,
       file: request.file,

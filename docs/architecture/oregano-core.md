@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -83,109 +83,21 @@ Core changes are rare for Workspace Contributors. A Workspace Contributor who
 finds a missing generic mechanism files a Core capability request rather than
 placing platform code in the Workspace.
 
-## Sprint orchestration
+## Declared workflow execution
 
-Core keeps Sprint policy separate from Sprint execution. The pure Sprint
-domain accepts a reviewed declaration, a Workspace-supplied business calendar,
-prior state, and one normalized event, then returns only deterministic state,
-evidence, and intents. It contains no provider client, SQL, model call, Tool
-execution, company template, or external effect.
+Core executes reviewed Workflows through the generic workflow engine, Company
+Records, Company Tools, calendars, conversations, and human-decision controls.
+Business interpretation, process steps, schedules, and Agent instructions
+belong to authored Workspace content or portable Blueprint material.
 
-The provider-neutral orchestration service surrounds that pure boundary. It
-atomically commits each event, its monotonic state version, decision evidence,
-and stable pending intents; optimistic retries preserve concurrent events and
-event-identity collisions fail closed. Durable timers enter through the same
-event path. A bounded leased worker may dispatch an intent only after an exact
-adapter has been supplied. The maintained adapter resolves a compiled Agent
-and Tool grant and calls the existing `CompanyOSRuntime`, so ToolSet,
-Capability, authorization, approval, effect, idempotency, and Connector
-controls are not duplicated.
+The former Sprint domain executor and its dedicated workers, routes, replay,
+and simulation paths have been removed. Core does not define a Sprint-specific
+execution lifecycle. The repository-local Sprint Blueprint is declarative
+Package material, not a runtime dependency or an automatically activated Agent.
 
-The maintained Vercel Runner hosts that service behind an authenticated
-operator route, separate timer and intent wake-up routes, and the existing
-authenticated Slack ingress. Workbench compiles the reviewed Sprint policy,
-schedule, templates, logical Agent, service principal, participant identity
-namespace, and destination/resource bindings into the immutable Artifact.
-Opening a Sprint reads only fresh authorized Company Records projections
-through the standard `records.query` Tool. `shadow` mode renders and records
-digests without provider effects; `active` mode still reaches a provider only
-through the standard Tool boundary. Each Sprint definition has a namespaced
-timer kind, so one worker cannot lease another definition's timers.
-
-An optional compiled replay binding selects one generic
-`communication-message` projection. The authenticated operator may replay an
-explicit historical period with an isolated Sprint definition and controlled
-clock. Canonical roster principals, not text or display names, resolve message
-authors; the Sprint Domain alone recognizes and derives typed Friday
-submissions. Exact communication and work-item source-version lineage is
-retained with the durable Sprint event. The maintained hosted replay is
-proof-only and structurally refuses every live output binding. A later test
-publication remains an ordinary Capability-controlled effect rather than a
-privilege of the replay engine.
-
-The same authenticated operator surface can execute one bounded full-week
-scenario against current stabilized participant and work-item projections.
-The scenario runner derives a separate definition and schedule namespace from
-the immutable input, forces the hosted runtime to `shadow`, advances only the
-real compiled timers and Sprint decisions with a controlled clock, and records
-events, intents, terminal dispatch evidence, and timer outcomes without calling
-a provider. Its catalog distinguishes deterministic runtime paths from planned
-conversational paths; an unhosted Triage, Briefing, inactivity, or blocker
-workflow cannot be reported as executed. Operator input cannot supply events,
-templates, destinations, Tools, grants, or provider payloads.
-
-An Instance may additionally compile one test-only scenario destination for a
-`shadow-only` Sprint runtime. A separate `publish-simulation` action reruns the
-same scenario, requires its exact reviewed output digest and one stored intent
-id, and currently accepts only a Monday hand-off intent. The actual compiled
-Sprint Agent, Workspace template, standard communication Tool, and Instance
-destination produce the effect and provider receipt; the operator cannot
-supply any of them. Workbench requires the live channel id in the explicit
-forbidden set and rejects logical or physical test/live equality. Although the
-compiled Agent owns the grant for proof attribution, the Slack conversational
-adapter removes that operator-only grant from the model-visible ToolSet while
-the runtime remains `shadow-only`.
-
-A second authenticated action, `publish-friday-close-simulation`, publishes a
-fixed Friday Close test set from the same reviewed scenario. It accepts no
-intent id: Core resolves exactly one succeeded reminder, chase, and report
-intent from durable proof and publishes them in that order. The reminder's
-real provider receipt opens the Slack thread; chase and report are forced to
-reuse that thread reference. Each message retains its own deterministic Tool
-effect identity and receipt, so a partial retry resumes without duplicating an
-already successful publication. Workspace templates and the Instance test
-binding remain the only sources of content and destination, while Retro and
-all live outputs remain ineligible.
-
-Weekly features compile independently: a Workspace may enable only Monday
-hand-off without inventing weekday-readiness policy. Readiness still requires
-its weekday digest trigger, planning states, required fields, direct-question
-template, and exact direct destinations. The weekly worker refreshes current work-item facts from a twice-stabilized
-projection before processing due Monday, weekday, readiness, or Friday timers.
-This does not replace the Sprint participant snapshot: the participant scope is
-frozen for the Sprint while provider work facts advance only through versioned
-`work-items.observed` events. Structured `NEXT WEEK` submissions feed the next
-Monday comparison; scheduled readiness emits at most one focused direct
-question per affected participant and one version-bound reversible status
-intent for each actual readiness transition. The status intent can change only
-the exact Instance-bound secondary field and never the authoritative provider
-group.
-
-Message text, participants, provider projections, calendar dates, schedules,
-language, and requested grants remain Company Workspace truth. Exact Agent,
-model, destination, work-item, database, secret, timer, and activation
-bindings remain Company Instance truth. Merely installing Core or preparing
-the additive database schema does not start a Sprint, lease an intent, send a
-message, or change a work item. The initial hosted profile uses reviewed
-Monday polling for projections and Slack for interactive submissions. Monday
-board-change webhooks and Monday card chat remain later extensions. A
-single-item reversible briefing proposal may be confirmed only by its exact
-active human subject through a dedicated R2 Tool. Rollover uses a separate R3
-batch Capability: automatic orchestration freezes and records only the
-proposal; an ordinary approval must authorize the exact batch, the Connector
-preflights every item before the first write, and a partial dispatch becomes an
-unknown effect outcome. The generic intent worker never turns a proposal
-directly into an effect.
+See [Workflow Execution](../specifications/workflow-execution-v1-draft.md) for
+the execution contract and [Workflow operations](../operations/workflow-engine.md)
+for migration from the retired executor.
 
 ## Handbook files
 

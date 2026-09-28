@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -446,7 +446,7 @@ and runtime environment; they never reuse an existing company connector.
 
 ## Event-driven runtime and Gateway boundary
 
-The maintained Sprint Agent V1 topology uses event-driven Instance endpoints,
+The workflow runtime uses event-driven Instance endpoints,
 asynchronous processing, durable StateStore state, and executable provider
 adapters. It does not require a long-running Instance Gateway. Existing
 boundaries provide the required responsibilities:
@@ -456,7 +456,7 @@ flowchart LR
     P["Provider event or schedule"] --> A["Thin Instance adapter<br/>verify and normalize"]
     A --> E["Provider-neutral event"]
     E --> Q["Asynchronous processing"]
-    Q --> S["Core Sprint module"]
+    Q --> S["Generic workflow engine"]
     S --> C["StateStore, ToolSet,<br/>approval, effect, and evidence controls"]
     C --> O["Thin Instance adapter<br/>provider effect"]
 ```
@@ -484,18 +484,11 @@ callback route, signing material, exact resource bindings, and activation
 receipts are Instance state. Conversational callbacks are signature- and
 replay-verified before `AgentResolver` selects the compiled Agent. A separately
 qualified board-change subscription would bypass the chat prompt and enter the
-records and Sprint path; a conversational external-Agent callback MUST NOT be
+records synchronization path; a conversational external-Agent callback MUST NOT be
 treated as that subscription. An
-outbound Sprint message similarly resolves the provider-neutral
+outbound workflow message similarly resolves the provider-neutral
 `communication.message.publish` Capability to an exact destination binding;
-the Sprint Blueprint does not know a channel ID.
-
-A Sprint Instance may instead declare its compiled execution as `shadow-only`.
-That mode retains exact destination metadata for deterministic rendering and
-proof but requires no provider-effect Tool grant or Capability binding. The
-hosted Runner rejects an `active` environment for that Artifact before it can
-construct an active dispatcher. This is stronger than relying only on a runtime
-branch after an effect-capable ToolSet has already been granted.
+authored workflow content does not supply a provider channel ID.
 
 The first maintained external-Agent runtime ingress implements Monday's exact
 signed synchronous callback and SSE/JSON acknowledgement formats. It binds an
@@ -590,64 +583,19 @@ inventory is mandatory before absence can become a retained tombstone. Neither
 production route modifies a provider, sends a message, invokes a model, grants
 an Agent Tool, or turns a conversational callback into a board event.
 
-The maintained Company Instance database manifest includes Record Source
-relations from version `1.8.0` and Sprint orchestration relations from version
-`1.9.0`, plus generic workflow control state from `2.0.0`. Production migration remains an
-explicit exact-plan Instance effect; deploying Core alone does not apply it.
-Database qualification and `/api/health` then prove the exact records table and
-index set along with the control schema.
+The current database manifest qualifies the general Records and workflow
+state required by the Instance. Fresh databases do not create legacy Sprint
+tables. Existing historical Sprint audit rows and immutable manifest identities
+are preserved; they do not activate the retired executor. Deploying Core alone
+does not apply a database migration.
 
-The maintained Vercel Runner hosts the reusable Sprint orchestration library.
-An authenticated operator action may inspect or open one compiled Sprint from
-fresh authorized Company Records projections. Separate `CRON_SECRET`-protected
-timer and intent routes wake bounded durable workers; the hosting cron contains
-no company cadence. Authenticated Slack messages first pass roster
-authorization and deterministic `AgentResolver` routing, then an exact Friday
-template may normalize into a Sprint event. Message content identifies the
-action only; it grants no authority and does not select the Agent.
-
-Friday Close is one ordered shared-channel thread. The reminder publication
-creates the provider thread reference, and the Runner persists a Chat SDK
-subscription before treating that root publication as complete. Participant
-submissions are accepted only in that exact thread. The chase, completeness
-report, and retrospective are replies to the same reference, and each
-successful provider receipt is normalized back into the durable Sprint event
-stream before the next step may become eligible. Direct-message bindings
-remain available for separately declared one-to-one Sprint interactions; they
-are not the Friday reminder path.
-
-Monday handoff, weekday movement digest, and configured readiness checkpoints
-are additional compiled weekly triggers. Immediately before processing due
-weekly timers, the Runner resolves a twice-stabilized current work-item
-projection and appends its exact source version to the Sprint event stream.
-The Sprint's participant scope stays frozen; only work facts refresh. An
-unchanged source version is replay-safe and creates neither duplicate decisions
-nor duplicate effects.
-At the readiness checkpoint, the runtime may set or invalidate only the exact
-Instance-bound secondary readiness field with the observed provider version;
-it never changes the authoritative provider group.
-
-Workbench compiles the reviewed Sprint declaration, immutable schedule
-manifest, calendar, Workspace-owned templates, logical Agent, service
-principal, participant identity namespace, and exact destination/resource
-bindings into the Artifact. The maintained dispatcher then enters the ordinary
-`CompanyOSRuntime` Tool boundary; it does not bypass Agent, ToolSet,
-Capability, authorization, idempotency, effect, or evidence controls. In
-`shadow` mode rendered content is represented only by digests and no provider
-effect occurs. In `active` mode messages may use an already authorized Tool. A
-briefing update may use the narrow subject-confirmation path only when the
-confirming active human is the exact proposal owner and the Tool risk is below
-R3. Rollover is a separate frozen R3 batch: automatic processing records only
-the proposal, ordinary approval authorizes the exact set, all items are
-preflighted before the first write, and partial dispatch is recorded as an
-unknown outcome rather than retried.
-Missing or stale projections, schedule coverage, identity mappings, bindings,
-grants, or dispatchers fail before an effect.
-
-The initial hosted rollout refreshes Monday-backed projections by bounded
-polling and treats Slack as the interactive surface. Monday board-change
-webhooks and Monday card chat are not initial-rollout requirements and require
-later qualification before activation.
+Declared Workflows use the generic hosting controls described in
+[Generic workflow hosting](#generic-workflow-hosting). Their reviewed steps,
+calendars, Agent definitions, templates, and logical bindings determine business
+behavior. Core enforces identity, Tool grants, approvals, idempotency, effects,
+and evidence without a Sprint-specific operator, worker, or dispatcher.
+See [Workflow operations](../operations/workflow-engine.md) for the retirement
+and migration contract.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

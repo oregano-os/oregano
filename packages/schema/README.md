@@ -21,9 +21,12 @@ The first versioned Company Records and workflow declarations are:
   Connector and SecretRef;
 - `company-record-projection-v1.schema.json` for rebuildable, access-scoped
   projections; and
-- `workflow-config-v2.schema.json` for Workspace-owned workflow configuration; and
+- `workflow-config-v2.schema.json` for Workspace-owned workflow configuration;
 - `schedule-v1.schema.json` for reviewed business days, holiday coverage,
-  delivery windows, and immutable trigger compilation.
+  delivery windows, and immutable trigger compilation; and
+- `event-source-v1.schema.json` for provider event sources that open a
+  workflow per verified created or moved item through a logical resource
+  binding.
 
 These schemas intentionally contain logical binding names, not provider
 resource identifiers, credentials, grants, or deployment state. Exact

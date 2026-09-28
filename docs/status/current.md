@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-15
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -60,7 +60,7 @@ not establish live deployment or model-quality qualification. See
 [Agent attachments and provider policies](../operations/agent-attachments.md).
 
 
-Unreleased on main after Core 0.15.0: a private workflow decision card roots
+Core 0.16.0 and Workbench experimental.24 release provider event triggers (above) together with the conversation-root decision cards: a private workflow decision card roots
 the conversation that follows it by default. Later messages to the same person
 use the card's own thread unless a Workspace declares otherwise, the affirmative
 control links there, an optional title replaces the generic card heading, and a
@@ -683,6 +683,23 @@ See the [maintained host profile](../operations/maintained-host-profile.md).
   passed through the protected candidate handler. A successful real callback
   remains an explicit post-deployment smoke test; no board trigger, Agent-token
   action, or production verification is claimed.
+- Declared workflows can open from a verified provider board event. A
+  Workspace event source under `events/` declares the logical resource binding
+  and the normalized kinds `item-created`, `item-moved` and `item-changed`
+  (bound to logical fields, never provider columns); a workflow selects
+  one trigger with `trigger: event:<id>` and receives identity-only
+  `$trigger.event` fields. The engine derives a per-event identity from
+  `trigger_id` and `event_id`, reuses the run on redelivery, rejects changed
+  content under the same identity, and refuses operator or scheduled openings
+  of event workflows. The maintained hosted Runner adds a fail-closed
+  board-event ingress for the maintained work-item provider, authenticated by
+  the registered URL credential, with challenge handling, explicit
+  non-acceptance reasons, actor-based echo suppression and the separate
+  `eventOpenWorkflowIds` hosting opt-in; see
+  [Monday board events](../operations/vercel-workflow-runner.md#monday-board-events).
+  Synthetic tests do not claim a real provider subscription, delivery,
+  activation or production verification; no Workspace event source is
+  activated by this Core change.
 - `companyos records source qualify --provider monday` is the only maintained
   Monday qualification path. It accepts only the Instance-owned external
   Agent token, verifies the exact Agent identity parsed from `me`, requires

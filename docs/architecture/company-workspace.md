@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -33,6 +33,7 @@ company-workspace/
 ├── workflows/
 ├── agents/
 ├── schedules/
+├── events/                   # optional provider event sources
 ├── connections/
 ├── .companyos/
 │   ├── compatibility.yaml

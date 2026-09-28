@@ -129,12 +129,20 @@ function parseAgentBindings(value: unknown, path: string): AgentBinding[] {
       throw new Error(`${path}: agent_bindings[${index}] must be an object.`);
     }
     const binding = entry as Record<string, unknown>;
+    const allowed = ["id", "agent", "surface", "account_id", "channel_id", "conversation_mode"];
+    const extra = Object.keys(binding).find(key => !allowed.includes(key));
+    if (extra) throw new Error(`${path}: unsupported Agent Binding field '${extra}'.`);
+    const mode = binding.conversation_mode;
+    if (mode !== undefined && mode !== "conversation" && mode !== "workflow-posts-only") {
+      throw new Error(`${path}: conversation_mode must be conversation or workflow-posts-only.`);
+    }
     return {
       id: requiredIdentifier(binding.id, `${path}: agent_bindings[${index}].id`),
       agentId: requiredIdentifier(binding.agent, `${path}: agent_bindings[${index}].agent`),
       surface: requiredIdentifier(binding.surface, `${path}: agent_bindings[${index}].surface`),
       accountId: requiredIdentifier(binding.account_id, `${path}: agent_bindings[${index}].account_id`),
       channelId: requiredIdentifier(binding.channel_id, `${path}: agent_bindings[${index}].channel_id`),
+      ...(mode !== undefined ? { conversationMode: mode } : {}),
     };
   });
 }

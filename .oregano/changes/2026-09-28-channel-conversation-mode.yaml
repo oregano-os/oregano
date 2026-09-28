@@ -1,0 +1,51 @@
+version: 3
+plan_id: channel-conversation-mode-2026-09-28
+created: "2026-09-28"
+title: Enforce workflow-only channel conversation boundaries
+objective: Add an exact Agent Binding mode that suppresses inbound conversational activity while preserving independently authorized workflow publication and Records reads.
+non_goals:
+  - Change model providers, credentials, business recipients or schedules.
+  - Merge, release or deploy without the existing adoption authority.
+placement: core
+change_class: security
+files_expected:
+  - packages/runtime/agent-resolver.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/channel-conversation.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/testkit/tests/channel-conversation.test.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - docs/reference/instance-configuration.md
+  - docs/specifications/conversation-participation.md
+  - docs/_generated/**
+  - .oregano/changes/2026-09-28-channel-conversation-mode.yaml
+tests:
+  - packages/testkit/tests/channel-conversation.test.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/testkit/tests/agent-resolver.test.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/testkit/tests/slack-communication-connector.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [reference.instance-configuration, specification.conversation-participation]
+architecture:
+  placement:
+    core: Parse and enforce exact channel conversation modes before model and conversation effects.
+    packages: Reuse the existing communication Connector; no new provider access or Package.
+    workspace: Keep business workflows and publication destinations in reviewed company files.
+    instance: Choose modes on existing exact surface/account/channel Agent Bindings.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Add a channel admission constraint independent of default Agents and stored assignments.
+    - mechanism: identity-and-authorization
+      reason: Evaluate trusted channel and authenticated principal identity before conversation effects.
+    - mechanism: capability-contracts-and-connectors
+      reason: Preserve independent governed workflow publications and Records reads without changing grants.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company can restrict a bound channel without introducing provider-specific business rules.
+rollback: Preserve the exact prior Artifact and state. Removing the mode re-enables conversation; do not roll back Core while retaining a restrictive declaration that old Core ignores. No database migration.

@@ -102,3 +102,24 @@ test("the isolated runner exposes only explicitly allowed Capability calls", asy
   assert.deepEqual(output, { value: "hello" });
   assert.deepEqual(calls, [{ capability: "fixture.echo", input: { value: "hello" } }]);
 });
+
+for (const fail of [false, true]) {
+  test(`a late ${fail ? "failed" : "successful"} capability cannot revive a timed-out sandbox`, async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    let calls = 0;
+    const source = valid.replace('return await context.capabilities.call("fixture.echo", { value: input.value });',
+      'await context.capabilities.call("fixture.echo", { value: input.value }); return await context.capabilities.call("fixture.echo", { value: "second" });');
+    const execution = executeIsolatedCompanyTool({ compiledSource: inspectAndCompileCompanyTool(source).compiledSource!,
+      input: { value: "first" }, timeoutMs: 3_000,
+      context: { instanceId: "fixture", runId: "run", stepId: "step", agentId: "agent", toolId: "tool" },
+      allowedCapabilities: ["fixture.echo"],
+      invokeCapability: async () => { calls++; await pending; if (fail) throw new Error("late failure"); return {}; },
+    });
+    const stopped = assert.rejects(execution, /Company Tool exceeded 3000 ms/);
+    await stopped;
+    release();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(calls, 1, "the terminated Tool must never dispatch its second capability");
+  });
+}

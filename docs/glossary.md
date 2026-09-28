@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-10
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -132,13 +132,6 @@ authority. A Workspace may bound expiry with a fixed TTL or the next local
 calendar-day boundary in one reviewed IANA timezone; the Instance always stores
 the resulting absolute instant.
 
-### Sprint Domain
-The pure provider-neutral Core decision boundary for validated Sprint state,
-events, business-time rules, read models, evidence, and effect intents. It does
-not contain a provider SDK, company value, prompt, credential, database access,
-or external-effect implementation. An unavailable effort basis is an explicit
-fact, not zero effort; derived read models preserve it as `null` and never
-substitute planned values.
 
 ### Sprint Blueprint
 The declarative `oregano/sprint-agent` Blueprint Package containing reusable

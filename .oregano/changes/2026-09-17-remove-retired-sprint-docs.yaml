@@ -1,0 +1,43 @@
+version: 3
+plan_id: remove-retired-sprint-docs-2026-09-17
+created: 2026-09-17
+title: Remove obsolete Sprint executor architecture documentation
+objective: Align four architecture documents and the glossary with the already retired Sprint executor and the generic workflow execution contract.
+non_goals:
+  - Change runtime code, Blueprint behavior, Workspace content or deployments.
+  - Remove historical audit data or relocate the Sprint Blueprint.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-17-remove-retired-sprint-docs.yaml
+  - docs/architecture/oregano-core.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/architecture/system-of-proof.md
+  - docs/glossary.md
+  - docs/governance/documentation-scope-baseline.json
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/retired-executor-removal.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.boundaries
+    - architecture.system-of-proof
+    - reference.glossary
+architecture:
+  placement:
+    core: Correct documentation of existing generic workflow controls without changing any mechanism.
+    packages: Leave the declarative Sprint Blueprint unchanged and distinguish its repository location from runtime ownership.
+    workspace: No inspection or changes; authored business behavior remains Workspace-owned.
+    instance: No changes to bindings, state, historical evidence or deployments.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Documentation reuses existing workflow, Records, identity, timer and effect boundaries; no resolver, mechanism or public contract is extended.
+rollback: Revert this documentation-only commit; runtime and stored data are unaffected.
