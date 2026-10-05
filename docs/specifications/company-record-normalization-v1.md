@@ -118,11 +118,13 @@ communication publication receipt. `thread_id` keeps the raw timestamp and
 by the stored receipt without splitting or fabricating a provider reference.
 This reference alone does not authenticate a conversation assignment.
 
-`occurred_at` preserves creation time; `accepted_at` is the current content
-version's edit time, or creation time for an unedited message. Both preserve
-all provider fractional digits (up to nine). Malformed timestamps and edits
-before creation fail. A late correction cannot inherit its earlier posting
-time. A Workspace deciding whether the original author submitted a form must
+`occurred_at` preserves creation time; `accepted_at` is the later of creation
+and current content edit time, or creation time for an unedited message. Both
+preserve all provider fractional digits (up to nine). Valid but non-monotonic
+edit metadata does not abort the channel inventory: `edited_at` and
+`provider_payload` retain the original evidence, while `accepted_at` never
+precedes creation. Malformed timestamps still fail. A late correction cannot
+inherit its earlier posting time. A Workspace deciding whether the original author submitted a form must
 compare original and current content authorship as well as its cutoff.
 
 Monday Record Source `0.3.3` emits `people_principals.<column-id>` as an array

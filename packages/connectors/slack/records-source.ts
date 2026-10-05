@@ -130,7 +130,9 @@ const normalizeMessage = (args: {
     : `slack-${authorKind}:${args.teamId}:${authorId}`;
   const edit = args.message.edited === undefined ? undefined : object(json(args.message.edited), "Slack edited metadata");
   const edited = edit ? string(edit.ts, "Slack edited timestamp") : undefined;
-  if (edited && timestampNanos(edited) < timestampNanos(ts)) throw new Error("Slack edit timestamp precedes message creation");
+  // Preserve both provider values even when their clocks disagree. Acceptance
+  // must never move before creation or make a later edit appear on time.
+  const accepted = edited && timestampNanos(edited) > timestampNanos(ts) ? edited : ts;
   const editorPrincipal = edit && typeof edit.user === "string" && /^[UW][A-Z0-9]{4,31}$/.test(edit.user)
     ? `slack:${args.teamId}:${edit.user}` : null;
   return {
@@ -150,7 +152,7 @@ const normalizeMessage = (args: {
     content_author_principal: edited && !isBot ? editorPrincipal ?? `slack-unknown:${args.teamId}:editor` : authorPrincipal,
     text: typeof args.message.text === "string" ? args.message.text : "",
     occurred_at: timestampIso(ts),
-    accepted_at: timestampIso(edited ?? ts),
+    accepted_at: timestampIso(accepted),
     subtype,
     is_deleted: subtype === "message_deleted" || Boolean(args.message.deleted_ts),
     reply_count: typeof args.message.reply_count === "number" ? args.message.reply_count : 0,

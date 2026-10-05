@@ -219,7 +219,18 @@ test("Slack content versions retain precise edit times and distinguish bots from
   assert.equal(unknownEditor!.content_author_principal, "slack-unknown:T12345:editor");
   assert.equal(inventory.synced_through, undefined, "precise message times are not a source coverage proof");
   messages[0]!.edited!.ts = "1893456000.123456788";
-  await assert.rejects(() => connector.readCompleteInventory(args), /edit timestamp precedes/);
+  const earlierEdit = await connector.readCompleteInventory(args);
+  assert.equal(earlierEdit.complete, true);
+  assert.equal(earlierEdit.objects.length, messages.length, "retain every message in the inventory");
+  assert.equal(earlierEdit.objects[0]!.accepted_at, "2030-01-01T00:00:00.123456789Z");
+  assert.equal(earlierEdit.objects[0]!.edited_at, "2030-01-01T00:00:00.123456788Z");
+  assert.deepEqual(earlierEdit.objects[0]!.provider_payload, messages[0]);
+  assert.equal(earlierEdit.objects[0]!.content_author_principal, "slack:T12345:U22222");
+  // Provider clocks may disagree across seconds, not merely at fractional precision.
+  messages[0]!.edited!.ts = "1893455999.000000";
+  const olderEdit = await connector.readCompleteInventory(args);
+  assert.equal(olderEdit.objects[0]!.accepted_at, "2030-01-01T00:00:00.123456789Z");
+  assert.equal(olderEdit.objects[0]!.edited_at, "2029-12-31T23:59:59.000000Z");
   messages[0]!.edited!.ts = "9999999999999999.1";
   await assert.rejects(() => connector.readCompleteInventory(args), /timestamp.*invalid/);
 });
