@@ -1,0 +1,42 @@
+version: 3
+plan_id: slack-import-timestamps-2026-10-05
+created: 2026-10-05
+title: Preserve Slack messages with non-monotonic edit metadata
+objective: Prevent valid provider timestamp ordering anomalies from aborting an entire qualified Slack inventory while preserving source evidence and conservative submission timing.
+non_goals:
+  - Change provider permissions, roster attribution, channel selection, or send messages.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-10-05-slack-import-timestamps.yaml
+  - packages/connectors/slack/records-source.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/testkit/tests/slack-thread-content.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - status.current
+architecture:
+  placement:
+    core: Normalize valid provider time values without assuming the edit clock is monotonic; retain raw evidence and use the later provider timestamp for acceptance.
+    packages: Existing consumers retain conservative accepted_at and current content authorship semantics.
+    workspace: Retain declared channel bounds, projection fields, submission windows and contributor rules.
+    instance: Reuse existing qualification, credential resolution and durable reconciliation; verify renewed successful inventories before declaring recovery.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Retain complete source objects and rebuild existing projections without silently dropping an anomalous message.
+    - mechanism: capability-contracts-and-connectors
+      reason: Correct the maintained Slack adapter; preserve identity, scope and malformed timestamp rejection.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any qualified Slack source may expose inconsistent edit ordering. The correction has no company-specific identifiers or routing.
+rollback: Redeploy the previously verified Core and Workspace pair; retain durable evidence. Earlier code will again reject affected inventories, so rollback does not imply restored source freshness.

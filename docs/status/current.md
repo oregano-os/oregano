@@ -142,6 +142,20 @@ external cards and keep routing acknowledgments separate from substantive
 answers. Real-model acceptance must check both the saved topic reference and
 the delivered conversation; synthetic SDK outputs alone do not prove this.
 
+## Source inventory timestamp resilience
+
+::: implementation-example
+
+The maintained source adapter now preserves messages with inconsistent edit
+ordering instead of aborting the entire inventory. Source evidence, attribution
+and conservative submission timing remain intact. See the
+[normalization contract](../specifications/company-record-normalization-v1.md).
+Instances benefit only after deploying the correction.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 ## Implemented and tested
 
 - Single-concern coordination forwards the verified original message without
