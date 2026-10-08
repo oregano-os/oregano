@@ -1,0 +1,34 @@
+version: 3
+plan_id: slack-connect-probe-2026-09-25
+created: "2026-09-25"
+title: Add an authenticated read-only Slack connection probe
+objective: Distinguish Connect credential failures from Slack authentication failures without publishing messages or exporting credentials.
+non_goals:
+  - Change production workflows, installations, scopes, or provider permissions.
+placement: core
+change_class: security
+files_expected:
+  - scripts/slack-connect-probe/**
+  - docs/operations/vercel-workflow-runner.md
+  - .oregano/changes/2026-09-25-slack-connect-probe.yaml
+tests:
+  - scripts/slack-connect-probe/probe.test.mjs
+documentation_impact:
+  required: true
+  affected_documents: [operations.vercel-workflow-runner]
+architecture:
+  placement:
+    core: Provide a reusable operator-only transport diagnosis fixture.
+    packages: Reuse Vercel Connect and Slack auth.test without business effects.
+    workspace: No Workspace behavior or content changes.
+    instance: Deploy only to an existing authorized test environment and remove after diagnosis.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Diagnose the existing Slack credential boundary without publishing or altering permissions.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any existing Slack-connected Vercel Instance can use the same bounded read-only diagnostic.
+rollback: Remove the diagnostic Preview deployment. Production aliases and state remain unchanged.
