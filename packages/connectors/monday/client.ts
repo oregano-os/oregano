@@ -211,7 +211,7 @@ export class MondayClient {
       if (!/^\d{1,20}$/.test(childBoardId)) throw new Error(`Monday subitem board id '${childBoardId}' is invalid`);
     }
 
-    type ColumnValue = { id: string; text: string | null; value: string | null };
+    type ColumnValue = { id: string; text: string | null; value: string | null; display_value?: string; linked_item_ids?: string[] };
     type Item = {
       id: string;
       name: string;
@@ -239,13 +239,14 @@ export class MondayClient {
     const variableDefinition = inventoryMode === "complete-table"
       ? "$boardIds: [ID!]!, $limit: Int!"
       : "$boardIds: [ID!]!, $limit: Int!, $columnIds: [String!]";
+    const columnFields = "id text value ... on BoardRelationValue { display_value linked_item_ids }";
     const columnSelection = inventoryMode === "complete-table"
-      ? "column_values { id text value }"
-      : "column_values(ids: $columnIds) { id text value }";
+      ? `column_values { ${columnFields} }`
+      : `column_values(ids: $columnIds) { ${columnFields} }`;
     const subitemSelection = inventoryMode === "complete-table" ? `
             subitems {
               id name updated_at created_at state url board { id } group { id } parent_item { id }
-              column_values { id text value }
+              column_values { ${columnFields} }
               subitems { id }
             }` : "";
     const itemSelection = `
@@ -342,6 +343,19 @@ export class MondayClient {
         }
         rawColumns[id] = parsed;
         const type = columnTypesByBoard.get(itemBoardId)?.get(id);
+        if (type === "board_relation") {
+          // Null legacy text/value do not mean an empty relation. Require the
+          // typed response and retain IDs without fetching another board.
+          if (typeof column.display_value !== "string" || !Array.isArray(column.linked_item_ids)
+            || column.linked_item_ids.some((value) => typeof value !== "string" || !/^\d{1,20}$/.test(value))) {
+            throw new Error(`Monday relation column '${id}' did not return valid typed values`);
+          }
+          columnText[id] = column.display_value;
+          columns[id] = [...new Set(column.linked_item_ids)];
+          rawColumns[id] = { text: column.text, value: column.value,
+            display_value: column.display_value, linked_item_ids: column.linked_item_ids };
+          continue;
+        }
         const personsAndTeams = type === "people" && parsed && typeof parsed === "object" && !Array.isArray(parsed)
           ? (parsed as Record<string, JsonValue>).personsAndTeams
           : undefined;
