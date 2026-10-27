@@ -1,14 +1,15 @@
 version: 3
 plan_id: record-scan-query-2026-10-27
 created: "2026-10-27"
-title: Bound current-scan receipt reads before decoding historical inventories
-objective: Prevent growing receipt history from timing out current Records queries while preserving exact immutable scan proofs.
+title: Release Core 0.17.1 with bounded current-scan receipt reads
+objective: Release a backward-compatible patch 0.17.1. Prevent growing receipt history from timing out current Records queries while preserving exact immutable scan proofs.
 non_goals:
   - Increase Tool timeouts or retry side effects automatically.
   - Change Workspace schedules, report rules, recipients or provider credentials.
 placement: core
 change_class: security
 files_expected:
+  - package.json
   - packages/records/service.ts
   - packages/records/memory-store.ts
   - packages/state-store/records.ts
