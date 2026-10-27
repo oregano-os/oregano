@@ -57,6 +57,8 @@ export function ensureCompanyRecordsSchema(): Promise<void> {
       started_at timestamptz not null, completed_at timestamptz not null,
       watermark text, summary jsonb not null,
       primary key (instance_id, source_id, run_id))`;
+    await sql`create index if not exists records_sync_receipts_completed_idx
+      on companyos_records.sync_receipts(instance_id, source_id, completed_at desc)`;
     await sql`create table if not exists companyos_records.source_watermarks (
       instance_id text not null, source_id text not null, watermark text not null,
       observed_at timestamptz not null, primary key (instance_id, source_id))`;

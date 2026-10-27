@@ -162,3 +162,21 @@ test("large ordinary inventories remain synchronizable but cannot supply bounded
   assert.equal(h.store.syncReceipts[1]!.scan_version_ids, undefined);
   await assert.rejects(h.query(), /inventory bound/, "never fall back to a smaller older scan");
 });
+
+
+test("current scan pushes a conservative completion bound without relaxing the exact start", async () => {
+  const h = fixture();
+  const read = h.store.readProjectionSnapshot.bind(h.store);
+  const seen: Array<Parameters<typeof read>[0]> = [];
+  h.store.readProjectionSnapshot = async args => { seen.push(args); return read(args); };
+  await h.sync("boundary", [object("one")], deadline);
+  assert.equal((await h.query()).rows.length, 1);
+  assert.equal(seen.at(-1)!.completedAtOrAfter, "2031-01-03T17:00:00.000Z");
+  await h.service().query({ subject, query: { projection_id: projection.id } });
+  assert.equal(seen.at(-1)!.completedAtOrAfter, undefined);
+  await h.sync("too-early-but-completed-late", [object("two")], "2031-01-03T16:59:59Z");
+  // Latest completed does not replace the latest qualifying scan start.
+  assert.equal((await h.query()).rows[0]!.values.content, "one");
+  for (const receipt of h.store.syncReceipts) receipt.completed_at = "2031-01-03T16:59:00Z";
+  await assert.rejects(h.query(), RecordScanPendingError);
+});

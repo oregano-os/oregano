@@ -1,0 +1,55 @@
+version: 3
+plan_id: record-scan-query-2026-10-27
+created: "2026-10-27"
+title: Release Core 0.17.1 with bounded current-scan receipt reads
+objective: Release a backward-compatible patch 0.17.1. Prevent growing receipt history from timing out current Records queries while preserving exact immutable scan proofs.
+non_goals:
+  - Increase Tool timeouts or retry side effects automatically.
+  - Change Workspace schedules, report rules, recipients or provider credentials.
+placement: core
+change_class: security
+files_expected:
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - package.json
+  - packages/records/service.ts
+  - packages/records/memory-store.ts
+  - packages/state-store/records.ts
+  - packages/state-postgres/records-store.ts
+  - packages/state-postgres/records-migrate.ts
+  - packages/testkit/tests/record-current-scan.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - docs/operations/workflow-engine.md
+  - .oregano/changes/2026-10-27-record-scan-query.yaml
+tests:
+  - packages/testkit/tests/record-current-scan.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.company-records-query-v1, operations.workflow-engine]
+architecture:
+  placement:
+    core: Push a conservative completion-time bound into the existing Records store and materialize candidates before JSON proof evaluation.
+    packages: Existing Records capability and Tool contracts remain unchanged.
+    workspace: Company schedules and report interpretation remain unchanged.
+    instance: Existing receipt evidence is retained; deployment and stopped-run recovery remain separate operations.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Optimize the existing current-scan proof read without replacing evidence or weakening source generations.
+    - mechanism: timers-and-business-time
+      reason: Preserve existing bounded pending-scan waits and original workflow cutoffs.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies benefit when polling grows historical receipt inventories.
+rollback: Restore the previous Core; the additive receipt index can remain. No evidence deletion or data rewrite.
