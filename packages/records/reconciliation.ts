@@ -61,8 +61,10 @@ export async function reconcileRecordSnapshot(args: {
         ...(args.watermark ? { cursor: args.watermark } : {}),
         receipt: { operation: "reconcile", run_id: args.runId },
       };
-      await store.appendSourceEvent(event);
-      const inserted = await store.putObjectVersion(version);
+      const current = await store.getCurrentObjectVersion(args.instanceId, args.sourceId, version.object_id);
+      const unchanged = current?.digest === version.digest;
+      if (!unchanged) await store.appendSourceEvent(event);
+      const inserted = unchanged ? false : await store.putObjectVersion(version);
       let repairedProjections = 0;
       for (const projection of registry.projectionsForRecordType(version.record_type)) {
         const row = projectRecord({ projection, version, projectedAt: args.observedAt });

@@ -1,3 +1,4 @@
+import { WorkflowArtifactCache } from "./artifact-cache.ts";
 import { neon } from "@neondatabase/serverless";
 import type { CompanyOSArtifact } from "../companyos-builder/types.ts";
 import type { WorkflowAssignment, WorkflowExecutionStore, WorkflowRun, WorkflowRunIdentity } from "../state-store/workflow-engine.ts";
@@ -6,6 +7,8 @@ import { assertWorkflowArtifact } from "../runtime/workflow-engine/guard.ts";
 import { validateWorkflowAssignment, validateWorkflowCreation, validateWorkflowLease, validateWorkflowState, workflowAssignmentKey, workflowInstant } from "../runtime/workflow-engine/state-validation.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
 import { ensureWorkflowExecutionSchema } from "./workflow-migrate.ts";
+
+const artifactCache = new WorkflowArtifactCache();
 
 const connection = () => {
   const url = process.env.DATABASE_URL;
@@ -37,13 +40,13 @@ export function createPostgresWorkflowExecutionStore(options: { prepareArtifactS
         on conflict (artifact_hash) do nothing`;
     },
     async getArtifact(hash) {
-      if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
-      const rows = await connection()`select artifact_json from companyos.workflow_artifacts where artifact_hash = ${hash}`;
-      if (!rows[0]) return undefined;
-      const artifact = json<CompanyOSArtifact>(rows[0].artifact_json);
-      assertWorkflowArtifact(artifact);
-      if (artifact.artifactHash !== hash) throw new Error("Historical workflow Artifact hash differs from its storage identity");
-      return artifact;
+      const url = process.env.DATABASE_URL;
+      if (!url) throw new Error("DATABASE_URL is required for workflow persistence");
+      return artifactCache.read(sha256(url), hash, async () => {
+        if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
+        const rows = await neon(url)`select artifact_json from companyos.workflow_artifacts where artifact_hash = ${hash}`;
+        return rows[0] ? json<CompanyOSArtifact>(rows[0].artifact_json) : undefined;
+      });
     },
     async create(args) {
       const artifact = await store.getArtifact(args.identity.artifactHash);
