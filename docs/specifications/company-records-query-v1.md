@@ -276,3 +276,17 @@ be combined with this mode. The exact result is capped at 2,500,000 serialized
 characters without truncation. Consumers must retain the earlier row version ID;
 a provider's own content hash is a distinct value. Current source access changes
 and binding generations remain effective for historical reads.
+
+### Current-scan receipt query cost
+
+The Records service passes a conservative completion-time lower bound to the
+store for current-scan reads. A qualifying scan cannot finish before its required
+start. The bound is floored to milliseconds; the existing nanosecond-aware scan
+start comparison remains authoritative. A late-finishing scan that began too
+early is still rejected. Historical completeness reads are unchanged.
+
+Receipt selection, generation digests, immutable membership, overflow checks and
+the single-statement snapshot boundary remain intact. No qualifying receipt still
+produces a pending scan, never a partial result. See the
+[operational guidance](../operations/workflow-engine.md#connector-io-deadline-failures)
+for storage implementation and diagnosis.

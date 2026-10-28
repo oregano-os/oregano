@@ -89,7 +89,7 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     this.accessDecisions.push(structuredClone(decision));
   }
 
-  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; projectionDigest?: string; strictSourceScope?: boolean; currentScan?: boolean; limit: number }): Promise<RecordReadSnapshot> {
+  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; projectionDigest?: string; strictSourceScope?: boolean; currentScan?: boolean; completedAtOrAfter?: string; limit: number }): Promise<RecordReadSnapshot> {
     // No await: rows and receipts are copied at the same observation boundary.
     const allowedVersions = args.strictSourceScope ? new Set([...this.objectVersions.values()]
       .filter((value) => value.instance_id === args.instanceId && args.sourceIds.includes(value.source_id)).map((value) => value.version_id)) : undefined;
@@ -101,6 +101,7 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
       .slice(0, args.limit + 1);
     const sourceReceipts = args.sourceIds.flatMap((sourceId) => {
       const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
+        && (!args.currentScan || !args.completedAtOrAfter || compareRecordInstants(value.completed_at, args.completedAtOrAfter) >= 0)
         && (!args.sourceDigests || value.source_digest === args.sourceDigests[sourceId])
         && (!args.projectionDigest || value.projection_digests?.[args.projectionId] === args.projectionDigest)
         && (args.currentScan ? value.scan_started_at : value.synced_through) && value.watermark && value.errors === 0)

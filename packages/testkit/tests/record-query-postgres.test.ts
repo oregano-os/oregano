@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { sha256 } from "../../runtime/canonical.ts";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { neon } from "@neondatabase/serverless";
@@ -50,6 +51,20 @@ test("Postgres current scans preserve exact immutable membership across edits, f
   assert.equal(first.scan_started_at, "2031-02-01T16:59:00.0000001Z");
   assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, first), []);
   assert.equal((await query()).snapshot_id, first.snapshot_id);
+  // Large obsolete inventories must be removed before JSON timestamp evaluation.
+  // This also detects planner predicate reordering: the old timestamp is deliberately invalid.
+  const historySql = neon(process.env.DATABASE_URL!);
+  await historySql`insert into companyos_records.sync_receipts
+    (instance_id,source_id,run_id,started_at,completed_at,watermark,summary)
+    select ${instanceId}, ${source.id}, 'history-' || n,
+      '2030-01-01'::timestamptz,'2030-01-01'::timestamptz,'historical',
+      jsonb_build_object('errors',0,'scan_started_at','not-a-timestamp',
+        'source_digest',${registry.sourceDigest(source.id)}::text,
+        'projection_digests',${JSON.stringify({ [projection.id]: sha256(projection) })}::jsonb,
+        'scan_version_ids',(select jsonb_agg(md5(i::text)) from generate_series(1,256) i))
+    from generate_series(1,2000) n`;
+  assert.equal((await query()).snapshot_id, first.snapshot_id, "obsolete JSON cannot affect a current proof");
+
   const append = store.appendSyncReceipt;
   store.appendSyncReceipt = async () => { throw new Error("Synthetic completion failure"); };
   await assert.rejects(sync("failed", ["one", "three"], "partial", "2031-02-01T16:59:01Z"), /completion failure/);

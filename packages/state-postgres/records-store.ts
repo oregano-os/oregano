@@ -304,10 +304,16 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
       // Sort integral seconds and fractional text separately: timestamptz rounds
       // beyond microseconds and would choose the wrong proof within one microsecond.
       const currentScan = args.currentScan === true;
-      const result = await connection()`with selected_receipts as materialized (
-          select distinct on (source_id) source_id, summary from companyos_records.sync_receipts
+      const result = await connection()`with candidate_receipts as materialized (
+          -- Fence cheap scalar filtering before TOAST-heavy JSON evaluation.
+          -- A plain WHERE conjunct lets the planner decode historical inventories first.
+          select source_id, run_id, watermark, summary from companyos_records.sync_receipts
           where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
-            and (case when ${currentScan} then summary->>'scan_started_at' else summary->>'synced_through' end) is not null
+            and (${currentScan ? args.completedAtOrAfter ?? null : null}::timestamptz is null
+              or completed_at >= ${currentScan ? args.completedAtOrAfter ?? null : null}::timestamptz)
+        ), selected_receipts as materialized (
+          select distinct on (source_id) source_id, summary from candidate_receipts
+          where (case when ${currentScan} then summary->>'scan_started_at' else summary->>'synced_through' end) is not null
             and watermark is not null and summary->>'errors' = '0'
             and (${sourceDigests}::jsonb is null or summary->>'source_digest' = (${sourceDigests}::jsonb)->>source_id)
             and (${args.projectionDigest ?? null}::text is null or summary->'projection_digests'->>${args.projectionId} = ${args.projectionDigest ?? null})

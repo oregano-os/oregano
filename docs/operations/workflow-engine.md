@@ -717,3 +717,11 @@ Core 0.17.0 releases the opt-in continuing Agent completion and output-recovery
 contract described above. Existing immutable Artifacts retain their original
 completion modes, budgets and failure policies. Adoption requires an exact
 reviewed Workspace/Instance build; a version change does not resume old runs.
+
+For repeated Records read timeouts, inspect receipt-query cost before raising the
+Tool budget. Current-scan reads prefilter receipts by completion time in a
+materialized SQL stage, before reading large historical JSON inventories. The
+additive `records_sync_receipts_completed_idx` supports that lookup. No historical
+evidence is deleted. Validate performance through read-only query replay and
+immutable-membership checks; do not resume a sending workflow to benchmark it.
+A deployed query correction does not itself resume previously blocked runs.

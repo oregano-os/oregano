@@ -14,7 +14,7 @@ import { projectionRecordId } from "./identity.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
 import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
-import { compareRecordInstants } from "./instant.ts";
+import { canonicalRecordInstant, compareRecordInstants } from "./instant.ts";
 import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
@@ -121,7 +121,10 @@ export class CompanyRecordsService {
       sourceIds,
       sourceDigests,
       ...(boundSourceIds.length ? { projectionDigest: sha256(projection) } : {}),
-      ...(args.query.require_scan_started_after !== undefined ? { currentScan: true, projectionDigest: sha256(projection) } : {}),
+      ...(args.query.require_scan_started_after !== undefined ? { currentScan: true, projectionDigest: sha256(projection),
+        // Completion cannot precede scan start. Floor to milliseconds so storage
+        // precision never excludes a qualifying sub-millisecond scan.
+        completedAtOrAfter: new Date(Date.parse(canonicalRecordInstant(args.query.require_scan_started_after))).toISOString() } : {}),
       limit: MAX_RECORD_QUERY_ROWS,
     });
     if (snapshot.rows.some((row) => row.instance_id !== instanceId)
