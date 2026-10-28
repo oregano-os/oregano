@@ -124,3 +124,31 @@ test("source failures are isolated, payload-free and retried by a later qualifie
   await worker().run(); assert.equal(calls.length, 2);
   h.now = "2030-01-04T14:31:00.000Z"; await worker().run(); assert.equal(calls.length, 4);
 });
+
+test("equivalent retained source generations share a poll receipt but changed projections do not", async () => {
+  const h = engineFixture(), records = new InMemoryCompanyRecordsStore();
+  const original = recordArtifact(h.artifact, "200002");
+  const other = structuredClone(original); other.provenance.builtAt = "2030-01-01T00:00:00.000Z";
+  let reads = 0;
+  const synchronize = createWorkflowRecordSynchronizer({ store: records, clock: () => new Date(h.now),
+    inspectReceipt: async (instanceId, sourceId, runId) => records.syncReceipts.find(r => r.instance_id === instanceId && r.source_id === sourceId && r.run_id === runId),
+    select: (artifact, sourceId) => {
+      const selected = selectWorkflowRecordSource(artifact, sourceId);
+      return { ...selected, connectors: { resolve: () => ({ readCompleteInventory: async () => {
+        reads++;
+        return { complete: true, objects: [], observed_at: h.now, watermark: "empty",
+          binding_digest: selected.registry.sourceBindingDigest(sourceId), receipt: { inventory_digest: "empty" } };
+      } }) } as unknown as RecordSourceConnectorRegistry };
+    } });
+  await synchronize(original, "fixture-items", "job-a", "poll-one");
+  await synchronize(other, "fixture-items", "job-b", "poll-one");
+  assert.equal(reads, 1);
+  await synchronize(other, "fixture-items", "job-c", "poll-two");
+  assert.equal(reads, 2);
+  const changed = structuredClone(other);
+  const snapshot = changed.connectors![0]!.configuration.configuration_snapshot as any;
+  snapshot.projections[0].freshness.max_age_minutes = 30;
+  rehash(changed);
+  await synchronize(changed, "fixture-items", "job-d", "poll-two");
+  assert.equal(reads, 3, "a changed projection requires its own materialization proof");
+});

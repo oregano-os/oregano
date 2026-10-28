@@ -725,3 +725,43 @@ additive `records_sync_receipts_completed_idx` supports that lookup. No historic
 evidence is deleted. Validate performance through read-only query replay and
 immutable-membership checks; do not resume a sending workflow to benchmark it.
 A deployed query correction does not itself resume previously blocked runs.
+
+
+::: implementation-example
+
+## Database traffic and retained evidence
+
+The Postgres workflow store caches validated immutable Artifacts per process,
+partitioned by a digest of the database connection identity and exact Artifact
+hash. The LRU is bounded to 16 entries and 64 MiB of serialized content. Reads
+return independent copies; simultaneous reads share one fetch. Missing, failed
+or invalid reads are not cached. Process restart and eviction fall back to the
+same validated database read; no mutable run, authorization or effect state is
+cached.
+
+Polling unchanged normalized objects records a complete scan receipt without
+adding per-object change events. Projection repair, freshness, membership,
+watermarks and deletion reconciliation remain enabled. Projection writes still
+refresh observation timestamps; this release does not eliminate all per-object
+database operations.
+
+A workflow Records poll reuses a successful durable receipt across targets only
+when Instance, qualified source generation and projection declarations match
+within the same poll scope. A different binding, source, identity directory or
+projection definition requires independent synchronization. Historical targets
+without active enabled workflows remain skipped; active waiting workflows must
+not be cancelled merely to reduce traffic.
+
+Historical source events and receipts are evidence, not disposable cache. Before
+any maintenance, inventory dependencies, establish a reviewed retention boundary,
+export exact rows and verify restoration in isolation. Do not delete object
+versions, scan membership, workflow runs or effect receipts to reduce a bill.
+This patch performs no deletion. Normal DELETE also does not immediately shrink
+allocated table/index files; a space-reclamation operation needs separate lock,
+capacity and availability assessment. Compare new event counts and transfer
+rates after release, rather than interpreting cumulative monthly usage as a
+post-release rate.
+
+See the [maintained host profile](maintained-host-profile.md).
+
+:::

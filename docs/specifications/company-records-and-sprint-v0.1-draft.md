@@ -71,7 +71,12 @@ Unknown objects, fields, and lifecycle states MUST NOT be guessed.
 object version are immutable and tenant-scoped. Exact event retries and exact
 object-content retries are idempotent. A changed object creates a new version.
 Deletion is represented as an observed version; it does not silently erase
-retained evidence.
+retained evidence. Complete sync and reconciliation inventories whose normalized
+content matches the current version MUST NOT append another per-object change
+event. The complete scan receipt, membership and watermark still record that
+observation. Projection repair remains fenced against the current version,
+including after an interrupted pass. Provider-delivered events retain their
+existing event-ID deduplication contract.
 
 **CRS-012 — Rebuildable projections.** A projection declares its record type,
 selection, exposed fields, freshness bound, read groups, and materialization

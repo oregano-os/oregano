@@ -92,7 +92,9 @@ export async function synchronizeRecordSnapshot(args: {
       const receipt: Record<string, JsonValue> = { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest ?? "unavailable" };
       const normalized = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
       const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
-      const ingested = await service.ingest({
+      // Complete scan receipts evidence unchanged observations; they are not new source changes.
+      const unchanged = current?.digest === normalized.digest;
+      const ingested = unchanged ? { duplicate: true } : await service.ingest({
         event: {
           source_id: source.id,
           event_id: `sync:${runId}:${normalized.object_id}:${normalized.digest}`,
@@ -105,7 +107,7 @@ export async function synchronizeRecordSnapshot(args: {
         receipt,
       });
       if (ingested.duplicate) {
-        await store.putObjectVersion(normalized);
+        if (!unchanged) await store.putObjectVersion(normalized);
         for (const projection of registry.projectionsForRecordType(normalized.record_type)) {
           const row = projectRecord({ projection, version: normalized, projectedAt: inventory.observed_at });
           await store.applyProjectionMutationIfCurrent({

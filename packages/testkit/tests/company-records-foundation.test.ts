@@ -573,3 +573,35 @@ test("the additive records schema contains durable deduplication, projection, ac
   assert.match(store, /with expected_current as materialized/);
   assert.match(store, /for update/);
 });
+
+test("unchanged polls retain scan evidence and repair projections without new change events", async () => {
+  const { registry, store } = fixture();
+  const raw = { id: "item-1", name: "Stable", columns: { status: "active" } };
+  const sync = (runId: string, observedAt: string) => synchronizeRecordSnapshot({
+    instanceId: "fixture-instance", source, registry, store, runId, leaseOwner: "test", leaseToken: runId,
+    leaseExpiresAt: "2030-02-01T11:00:00.000Z", inventory: {
+      complete: true, observed_at: observedAt, scan_started_at: observedAt, objects: [raw], watermark: runId,
+      receipt: { inventory_digest: "stable" },
+    },
+  });
+  await sync("first", "2030-02-01T10:00:00.000Z");
+  store.projectionRows.clear(); // An interrupted/removed projection still needs repair.
+  const second = await sync("second", "2030-02-01T10:01:00.000Z");
+  assert.equal(store.sourceEvents.size, 1);
+  assert.equal(store.objectVersions.size, 1);
+  assert.equal(store.projectionRows.size, 1);
+  assert.equal(second.unchanged, 1);
+  assert.equal(second.inserted, 0);
+  assert.equal(second.scan_version_ids!.length, 1);
+  assert.equal(second.completed_at, "2030-02-01T10:01:00.000Z");
+  assert.equal(store.syncReceipts.length, 2);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "second");
+  await reconcileRecordSnapshot({ instanceId: "fixture-instance", sourceId: source.id, registry, store,
+    runId: "reconcile-stable", leaseOwner: "test", leaseToken: "reconcile-stable", observedAt: "2030-02-01T10:02:00.000Z",
+    leaseExpiresAt: "2030-02-01T11:00:00.000Z", objects: [raw] });
+  assert.equal(store.sourceEvents.size, 1);
+  raw.name = "Changed";
+  await sync("third", "2030-02-01T10:03:00.000Z");
+  assert.equal(store.sourceEvents.size, 2);
+  assert.equal(store.objectVersions.size, 2);
+});

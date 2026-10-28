@@ -256,7 +256,7 @@ test("Postgres deployment startup reads the exact immutable Artifact without sch
     await register();
     assert.deepEqual(loadArtifact(), JSON.parse(JSON.stringify(h.artifact)));
     await register();
-    assert.equal(reads, 3, "only the first startup reads the exact retained Artifact");
+    assert.equal(reads, 2, "startup reuses the validated database Artifact; only the initial and missing reads query storage");
   } finally {
     neonConfig.fetchFunction = originalFetch;
     for (const [key, value] of Object.entries(previous)) {

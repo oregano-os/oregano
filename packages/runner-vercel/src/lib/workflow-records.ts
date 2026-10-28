@@ -1,3 +1,4 @@
+import { sha256 } from "../../../runtime/canonical.ts";
 import { randomUUID } from "node:crypto";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
@@ -25,9 +26,14 @@ export function createWorkflowRecordSynchronizer(dependencies: {
 } = {}) {
   const store = dependencies.store ?? createPostgresCompanyRecordsStore();
   const inspectReceipt = dependencies.inspectReceipt ?? inspectPostgresCompanyRecordSyncReceipt;
-  return async (artifact: CompanyOSArtifact, sourceId: string, jobId: string): Promise<JsonValue> => {
+  return async (artifact: CompanyOSArtifact, sourceId: string, jobId: string, pollScope?: string): Promise<JsonValue> => {
     const selected = (dependencies.select ?? selectWorkflowRecordSource)(artifact, sourceId);
-    const runId = `workflow-records:${jobId}`, instanceId = artifact.instance.id;
+    // Identical qualified source/projection generations share one durable receipt per poll.
+    // Different bindings, identity directories or projection definitions never coalesce.
+    const generationJob = pollScope ? sha256({ pollScope, instanceId: artifact.instance.id,
+      source: selected.registry.sourceStorageId(sourceId), sourceDigest: selected.registry.sourceDigest(sourceId),
+      projections: selected.registry.projectionsForRecordType(selected.source.record_type) }) : jobId;
+    const runId = `workflow-records:${generationJob}`, instanceId = artifact.instance.id;
     const prior = await inspectReceipt(instanceId, selected.registry.sourceStorageId(sourceId), runId);
     if (prior) {
       if (prior.errors !== 0) throw new Error("Previous workflow source synchronization did not complete successfully");

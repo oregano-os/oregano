@@ -50,7 +50,7 @@ export interface WorkflowRecordWorkerResult {
 interface WorkflowRecordWorkerOptions {
   artifact: CompanyOSArtifact; store: WorkflowExecutionStore; timers: DurableTimerService;
   enabledWorkflowIds: readonly string[]; recordSync?: WorkflowRecordSyncConfiguration;
-  synchronizeSource(artifact: CompanyOSArtifact, sourceId: string, jobId: string): Promise<JsonValue>;
+  synchronizeSource(artifact: CompanyOSArtifact, sourceId: string, jobId: string, pollScope?: string): Promise<JsonValue>;
   clock?: () => string;
 }
 /** Poll retained generations through the existing Records service, never through a business workflow executor. */
@@ -105,7 +105,7 @@ export class WorkflowRecordWorkers {
             || pinned.instance.environment !== artifact.instance.environment) throw new Error("Qualified historical Records Artifact is unavailable or belongs to another Instance");
           attempted++;
           evidence.push({ artifact_hash: target.artifactHash, source_id: target.sourceId,
-            receipt: await synchronizeSource(pinned, target.sourceId, sha256({ dueAt: job.dueAt, configDigest, target })) });
+            receipt: await synchronizeSource(pinned, target.sourceId, sha256({ dueAt: job.dueAt, configDigest, target }), sha256({ dueAt: job.dueAt, configDigest })) });
           result.synchronized++;
         } catch (error) {
           result.errors.push({ ...target, errorDigest: sha256(error instanceof Error ? error.message : String(error)) });
