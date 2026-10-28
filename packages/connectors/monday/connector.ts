@@ -76,6 +76,7 @@ export class MondayWorkItemConnector implements Connector {
     try {
       await this.client.updateWorkItem(binding, workItemId, changes);
       const after = await this.client.readWorkItem(binding, workItemId);
+      this.verifyRelationChanges(changes, after.data.fields);
       const changedFields = Object.keys(changes).sort();
       await this.rememberEcho(binding, workItemId, after.data.providerVersion, context.idempotencyKey);
       return {
@@ -128,6 +129,7 @@ export class MondayWorkItemConnector implements Connector {
       for (const entry of prepared) {
         await this.client.updateWorkItem(binding, entry.workItemId, entry.changes);
         const after = await this.client.readWorkItem(binding, entry.workItemId);
+        this.verifyRelationChanges(entry.changes, after.data.fields);
         await this.rememberEcho(binding, entry.workItemId, after.data.providerVersion, context.idempotencyKey);
         results.push({
           work_item_id: entry.workItemId,
@@ -159,6 +161,16 @@ export class MondayWorkItemConnector implements Connector {
         changed_fields: [...new Set(results.flatMap((entry) => entry.changed_fields))].sort(),
       },
     };
+  }
+
+  private verifyRelationChanges(changes: Record<string, JsonValue>, observed: Record<string, JsonValue>): void {
+    for (const [field, value] of Object.entries(changes)) {
+      if (!value || typeof value !== "object" || Array.isArray(value) || !("item_ids" in value)) continue;
+      const expected = value.item_ids;
+      const actual = observed[field];
+      const ids = actual && typeof actual === "object" && !Array.isArray(actual) ? actual.item_ids : undefined;
+      if (!Array.isArray(expected) || !Array.isArray(ids) || JSON.stringify([...new Set(expected.map(String))].sort()) !== JSON.stringify([...new Set(ids.map(String))].sort())) throw new Error("Monday relation readback differs from approved assignment");
+    }
   }
 
   private validateChanges(binding: MondayResourceBinding, changes: Record<string, JsonValue>): void {
