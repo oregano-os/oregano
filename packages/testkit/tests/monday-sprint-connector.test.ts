@@ -335,3 +335,36 @@ test("Company Records and work-item standard Tools expose only provider-neutral 
   });
   assert.equal((result.output as any).projection_id, "participants");
 });
+
+for (const inventoryMode of ["selected-items", "complete-table"] as const) {
+  test(`Monday ${inventoryMode} preserves typed relations on cursor pages and subitems`, async () => {
+    const queries: string[] = [];
+    const relation = (ids: string[], label: string) => ({ id: "relation", text: null, value: null, linked_item_ids: ids, display_value: label });
+    const row = (id: string, column: unknown) => ({ id, name: id, updated_at: "2030-02-01T10:00:00Z", board: { id: "200002" }, group: { id: "hq" }, column_values: [column] });
+    const firstItem = { ...row("100", relation(["301", "302", "301"], "Goal A, Goal B")), subitems: [{ ...row("101", relation(["302"], "Goal B")), parent_item: { id: "100" }, subitems: [] }] };
+    const pages = [response({ boards: [{ id: "200002", name: "Projects", board_kind: "private", state: "active", groups: [{ id: "hq", title: "HQ" }], columns: [{ id: "relation", title: "Goal", type: "board_relation" }], items_page: { cursor: "page2", items: [firstItem] } }] }), response({ next_items_page: { cursor: null, items: [row("102", relation([], ""))] } })];
+    const client = new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async (_input, init) => {
+      queries.push(JSON.parse(String(init?.body)).query);
+      return pages.shift()!;
+    } });
+    const result = await client.readCompleteRecordInventory({ boardId: "200002", columnIds: ["relation"], inventoryMode });
+    const rows = result.objects.filter(value => value.object_kind === "item" || value.object_kind === "subitem");
+    assert.deepEqual(rows.find(value => value.provider_id === "100")!.columns.relation, ["301", "302"]);
+    assert.equal(rows.find(value => value.provider_id === "100")!.column_text.relation, "Goal A, Goal B");
+    assert.deepEqual((rows.find(value => value.provider_id === "100")!.provider_payload.columns as any).relation.linked_item_ids, ["301", "302", "301"]);
+    assert.deepEqual(rows.find(value => value.provider_id === "102")!.columns.relation, []);
+    if (inventoryMode === "complete-table") assert.deepEqual(rows.find(value => value.provider_id === "101")!.columns.relation, ["302"]);
+    assert.equal(queries.length, 2);
+    for (const query of queries) {
+      assert.match(query, /on BoardRelationValue \{ display_value linked_item_ids \}/);
+      assert.doesNotMatch(query, /linked_items\s*\{/);
+    }
+  });
+}
+
+test("Monday rejects absent or malformed typed relation evidence instead of reporting no assignment", async () => {
+  for (const extra of [{}, { display_value: "", linked_item_ids: null }, { display_value: "Goal", linked_item_ids: [123] }]) {
+    const client = new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async () => response({ boards: [{ id: "200002", name: "Projects", groups: [], columns: [{ id: "relation", type: "board_relation" }], items_page: { cursor: null, items: [{ id: "100", name: "Task", updated_at: null, board: { id: "200002" }, group: { id: "hq" }, column_values: [{ id: "relation", text: null, value: null, ...extra }] }] } }] }) });
+    await assert.rejects(client.readCompleteRecordInventory({ boardId: "200002", columnIds: ["relation"] }), /did not return valid typed values/);
+  }
+});

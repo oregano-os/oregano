@@ -15,6 +15,16 @@ audience:
 
 # Current System Status
 
+::: implementation-example
+
+See [the concrete source connection guide](../workbench/guides/connect-company-record-source.md).
+
+Monday Records inventory supports typed connect-board values (IDs and display
+text), including qualified subitems. Company-specific mappings and a successful
+production reimport remain separate adoption steps.
+
+:::
+
 The experimental Brain import foundation now includes frozen cumulative transcript
 selection and per-attempt model usage/cost evidence through existing control state.
 Workspace values set dates and quantities; no import Workflow or live source is

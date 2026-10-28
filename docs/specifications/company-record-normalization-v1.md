@@ -27,6 +27,19 @@ The maintained normalization path is shared by ordinary ingestion, complete
 snapshot synchronization and reconciliation. No Company Tool obtains provider
 access or parses messages as a substitute for this path.
 
+::: implementation-example
+
+See [the concrete source connection guide](../workbench/guides/connect-company-record-source.md).
+
+Monday `board_relation` inventory reads `BoardRelationValue.display_value` and
+`linked_item_ids`. `columns.<id>` contains the unique linked IDs in provider
+order; `column_text.<id>` contains display text. Raw typed values remain in
+provider evidence. Missing or malformed typed values fail the inventory instead
+of being reported as an empty assignment. This applies to selected items,
+cursor pages and qualified subitems; it never traverses a linked board.
+
+:::
+
 ## Field contracts
 
 `fields[].source` is a literal, own-property path in the normalized provider
