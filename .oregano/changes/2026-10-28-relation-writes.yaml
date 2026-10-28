@@ -10,6 +10,7 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/testkit/fixtures/**
   - package.json
   - packages/cli/tests/**
   - packages/testkit/tests/**
