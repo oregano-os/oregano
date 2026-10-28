@@ -474,12 +474,12 @@ export class MondayClient {
     const response = await this.graphql<{
       items: Array<{
         id: string; name: string; updated_at: string; board: { id: string }; group: { id: string };
-        column_values: Array<{ id: string; text: string; value: string | null }>;
+        column_values: Array<{ id: string; text: string; value: string | null; type?: string; linked_item_ids?: string[]; display_value?: string }>;
       }>;
     }>(`query ReadWorkItem($ids: [ID!]!, $columnIds: [String!]) {
       items(ids: $ids) {
         id name updated_at board { id } group { id }
-        column_values(ids: $columnIds) { id text value }
+        column_values(ids: $columnIds) { id text value type ... on BoardRelationValue { linked_item_ids display_value } }
       }
     }`, { ids: [workItemId], columnIds: fields.map((field) => binding.fields[field]) });
     const item = response.data.items[0];
@@ -491,6 +491,11 @@ export class MondayClient {
     for (const column of item.column_values) {
       const logical = logicalByProvider.get(column.id);
       if (!logical) continue;
+      if (column.type === "board_relation") {
+        if (!Array.isArray(column.linked_item_ids) || column.linked_item_ids.some(id => typeof id !== "string" || !/^\d{1,20}$/.test(id))) throw new Error("Monday relation read lacks typed item IDs");
+        values[logical] = { item_ids: [...new Set(column.linked_item_ids)].sort() };
+        continue;
+      }
       if (column.value === null) values[logical] = column.text;
       else {
         try { values[logical] = JSON.parse(column.value) as JsonValue; }

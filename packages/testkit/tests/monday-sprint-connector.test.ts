@@ -368,3 +368,23 @@ test("Monday rejects absent or malformed typed relation evidence instead of repo
     await assert.rejects(client.readCompleteRecordInventory({ boardId: "200002", columnIds: ["relation"] }), /did not return valid typed values/);
   }
 });
+
+test("work-item reads retain typed relation IDs when legacy values are null", async () => {
+  const client = new MondayClient({token:"fixture",apiVersion:"dev",fetcher:async (_url,init)=>{
+    assert.match(JSON.parse(String(init?.body)).query,/BoardRelationValue/);
+    return response({items:[{id:"100",name:"Task",updated_at:"v1",board:{id:"200"},group:{id:"g"},column_values:[{id:"relation",type:"board_relation",text:null,value:null,linked_item_ids:["301","300","301"],display_value:"Growth, Retention"}]}]});
+  }});
+  const result=await client.readWorkItem({id:"tasks",boardId:"200",permission:"read-write",fields:{goal:"relation"}},"100");
+  assert.deepEqual(result.data.fields.goal,{item_ids:["300","301"]});
+});
+
+test("relation updates require matching readback for single and batch writes", async()=>{
+ for(const batch of [false,true]) for(const matches of [false,true]) {
+  const read=(ids:string[],version:string)=>response({items:[{id:"100",name:"Task",updated_at:version,board:{id:"200"},group:{id:"g"},column_values:[{id:"relation",type:"board_relation",text:null,value:null,linked_item_ids:ids}]}]});
+  const queue=[read([],"v1"),response({change_multiple_column_values:{id:"100"}}),read(matches?["300"]:[],"v2")];
+  const connector=new MondayWorkItemConnector({client:new MondayClient({token:"fixture",apiVersion:"dev",fetcher:async()=>queue.shift()!}),bindings:[{id:"tasks",boardId:"200",permission:"read-write",fields:{goal:"relation"}}],actorId:"bot",instanceId:"fixture",echoStore:new InMemoryMondayEchoStore()});
+  const update={work_item_id:"100",expected_version:"v1",changes:{goal:{item_ids:[300]}}};
+  const result=connector.invoke(batch?"work-item.batch-update":"work-item.update",{resource_binding:"tasks",...(batch?{updates:[update]}:update)},{instanceId:"fixture",runId:"run",stepId:"save",agentId:"agent",toolId:"save",idempotencyKey:"key"});
+  if(matches) await result; else await assert.rejects(result,CapabilityEffectOutcomeUnknownError);
+ }
+});

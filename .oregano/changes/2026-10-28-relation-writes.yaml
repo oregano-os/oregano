@@ -1,0 +1,42 @@
+version: 3
+plan_id: typed-relation-writes-2026-10-28
+created: 2026-10-28
+title: Read and verify typed Monday relation assignments
+objective: Preserve typed relation IDs in bound work-item reads and fail closed
+  when relation mutation readback differs from approved IDs.
+non_goals:
+  - Change provider access beyond declared resources.
+  - Change workflow confirmation or bulk-write risk classifications.
+placement: core
+change_class: security
+files_expected:
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/connector.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - .oregano/changes/2026-10-28-relation-writes.yaml
+tests:
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+architecture:
+  placement:
+    core: Use typed BoardRelationValue reads and verify relation IDs after mutation.
+    packages: Extend the existing Monday work-item adapter, without company-specific
+      ROCK semantics.
+    workspace: Declare ROCK selection and exact single-card subject confirmations.
+    instance: Expose the existing relation column through the declared work-item binding.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Keep existing version-bound effects, partial outcome evidence and
+        approvals; verify typed relation readback.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Workspace may use a bound relation field without
+    treating null legacy values as an empty relation.
+rollback: Restore the previous Core; do not replay unknown provider effects.

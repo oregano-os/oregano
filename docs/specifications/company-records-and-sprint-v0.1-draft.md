@@ -360,3 +360,7 @@ reusable guarantees; [workflow operation](../operations/workflow-engine.md)
 describes current qualification. Every Company Instance still needs its own
 exact deployment, provider delivery, permitted write and recovery evidence.
 Repository checks alone do not activate a company schedule or prove a rollout.
+
+### Typed relation effects
+
+Bound work-item relation reads retain the related object identities explicitly; an unavailable legacy display value is not evidence of an empty relation. After a relation mutation, the Connector compares the observed identity set to the approved set before issuing success evidence. A mismatch remains an unknown effect requiring reconciliation and MUST NOT be automatically retried. Resource scope, optimistic concurrency, subject confirmation and bulk-effect approval requirements remain unchanged.
